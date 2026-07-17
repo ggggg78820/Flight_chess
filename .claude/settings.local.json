@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./mvnw.cmd -q -o compile)",
+      "Bash(cp src/main/resources/static/app.js target/classes/static/app.js)",
+      "Bash(cp src/main/resources/static/style.css target/classes/static/style.css)",
+      "Bash(cp src/main/resources/templates/index.html target/classes/templates/index.html)",
+      "Bash(netstat -ano)",
+      "PowerShell(try { Invoke-RestMethod -Uri \"http://localhost:9333/json/version\" -TimeoutSec 3 | Out-Null; Write-Host \"alive\" } catch { Write-Host \"dead: $_\" })",
+      "PowerShell(try { Invoke-RestMethod -Uri \"http://localhost:9333/json/version\" -TimeoutSec 3 | Out-Null; Write-Host \"alive\" } catch { Write-Host \"dead, relaunching\"; $chrome = \"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\"; Start-Process -FilePath $chrome -ArgumentList \"--headless=new\",\"--disable-gpu\",\"--remote-debugging-port=9333\",\"--user-data-dir=$env:TEMP\\\\claude-chrome-profile-fc4\",\"about:blank\" | Out-Null; Start-Sleep 2 })",
+      "Bash(./mvnw.cmd -q -o clean compile)"
+    ]
+  }
+}

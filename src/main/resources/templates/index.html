@@ -1,0 +1,248 @@
+<!--
+  這是整個「飛行棋塔防 AI 對戰」遊戲的唯一一張網頁。
+  當使用者瀏覽 http://localhost:8080/ 時，Spring Boot 的 HomeController 會回傳 "index"，
+  Thymeleaf 樣板引擎再把這個檔案渲染成完整 HTML 回傳給瀏覽器。
+
+  這份 HTML 本身沒有用到 Thymeleaf 的動態語法（例如 th:text），單純是一份靜態版面，
+  所有「動態」的部分（棋盤畫面、回合狀態、AI 行動……）都是由頁面最下方載入的
+  /app.js 這支 JavaScript，在瀏覽器端用 document.getElementById(...) 抓取這裡定義的元素、
+  再動態修改內容或樣式做出來的。所以下面的註解，重點會放在「這個元素的 id/class
+  是被 app.js 或 style.css 拿去做什麼用」。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>飛行棋塔防 AI 對戰</title>
+  <!-- 從 Google Fonts 載入「思源黑體（Noto Sans TC）」，讓中文字顯示更好看 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+  <!-- 樣式表，路徑 /style.css 對應 src/main/resources/static/style.css（Spring Boot 預設把 static 目錄底下的檔案視為靜態資源，直接用網址路徑存取） -->
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!-- 頁首：純裝飾用的標題區塊，.runway-line 是 CSS 動畫做出的跑道虛線效果 -->
+  <header>
+    <div class="runway-line"></div>
+    <h1>✈ 飛行棋塔防 <span>AI 對戰</span></h1>
+    <p>單機版（AI 對戰） • HTML + JavaScript • Java Spring Boot • MySQL</p>
+  </header>
+
+  <main class="wrap">
+    <!-- 整個畫面用 CSS Grid 分成三欄：左邊教學面板 / 中間棋盤 / 右邊紀錄與資料庫展示 -->
+    <div class="grid-main">
+
+      <!-- ===== 左欄：控制與教學面板 ===== -->
+      <aside class="card info-panel">
+        <div class="card-header">
+          <div>
+            <h2>控制與教學</h2>
+            <p class="subtitle">一步步引導讓新手更快理解流程</p>
+          </div>
+        </div>
+
+        <div class="body">
+          <!--
+            教學提示區塊：app.js 裡的 setTip(title, text) 函式會即時改寫這兩個元素的內容，
+            在遊戲的每個步驟（擲骰、移動、AI 回合中……）顯示對應的操作提示，
+            達成「像有一個小老師在旁邊教你怎麼玩」的效果。
+          -->
+          <div class="tutorial">
+            <h3 id="tipTitle">歡迎</h3>
+            <div id="tipText">按下「▶ 開始 / 重新開始」以進行遊戲。</div>
+          </div>
+
+          <!--
+            建塔選單：裡面的按鈕不是寫死在這裡，而是 app.js 頁面載入時呼叫 GET /api/towers 拿到
+            塔種清單後，用 renderTowerChoiceButtons() 動態產生的（每顆按鈕的 data-tower 屬性
+            標記塔的種類代號），這樣「有哪幾種塔、名字/圖示是什麼」就以資料庫為準，不用前後端
+            各自維護一份寫死的清單。預設用 style="display:none" 藏起來，玩家移動後如果剛好停在
+            塔位格，app.js 會把這裡的 display 改成 "grid" 顯示出來。
+          -->
+          <div class="tower-choice-panel">
+            <div class="tower-title">
+              <h3>選擇塔型</h3>
+              <p>停在塔位後可建塔，建塔後由對手觸發。</p>
+            </div>
+            <div class="choice" id="towerChoices" style="display:none"></div>
+          </div>
+
+          <!-- 純靜態的規則說明文字，讓新手玩之前先了解玩法，這一區完全不需要 JavaScript 參與 -->
+          <div class="rule-panel-wrapper">
+            <section class="card rule-panel">
+              <div class="card-header">
+                <div>
+                  <h2>簡化規則</h2>
+                  <p class="subtitle">遊戲流程與塔種一目瞭然</p>
+                </div>
+              </div>
+              <div class="body">
+                <div class="rules">
+                  <div class="rule"><b>① 起飛與移動</b><span class="small">擲出 1~6 任意點數即可起飛。已在跑道上的飛機依骰子前進。</span></div>
+                  <div class="rule"><b>② 飛躍格 ✈</b><span class="small">停在飛躍格時額外前進 4 格；若被雷達干擾則本次不飛躍。</span></div>
+                  <div class="rule"><b>③ 路障塔 ⬡</b><span class="small">停在固定塔位才能建塔，塔會在對方經過時觸發效果。</span></div>
+                  <div class="rule"><b>④ AI 行為</b><span class="small">AI 優先移動最前面的飛機；若可建塔則隨機選擇塔型。</span></div>
+                  <div class="rule"><b>⑤ 勝負</b><span class="small">玩家或 AI 任一方 4 架飛機抵達終點時遊戲結束。</span></div>
+                </div>
+
+                <div class="tower-types-panel">
+                  <div class="tower-card">
+                    <span class="icon">🏰</span>
+                    <strong>砲塔</strong>
+                    <p>敵機經過立即送回機坪。</p>
+                  </div>
+                  <div class="tower-card">
+                    <span class="icon">❄️</span>
+                    <strong>冰霧塔</strong>
+                    <p>敵方下回合骰子值減 1。</p>
+                  </div>
+                  <div class="tower-card">
+                    <span class="icon">📡</span>
+                    <strong>雷達塔</strong>
+                    <p>敵方下一次飛躍格效果失效。</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ===== 中欄：遊戲主畫面（棋盤） ===== -->
+      <section class="card board-panel">
+        <div class="card-header">
+          <div>
+            <h2>遊戲主畫面</h2>
+            <p class="subtitle">即時棋盤與回合資訊</p>
+          </div>
+          <span class="chip">2-3 分鐘上手</span>
+        </div>
+
+        <div class="body">
+          <div class="board-header-row">
+            <!-- 開始 / 重新開始按鈕：app.js 監聽這顆按鈕的 click 事件，重置整個遊戲狀態並開新的一局 -->
+            <div class="start-box compact">
+              <h3>準備起飛？</h3>
+              <!--
+                身分輸入區：只填名字、不需要密碼，純粹讓後端知道「這次是誰在玩」，
+                好把這一局的勝敗紀錄掛在正確的名字底下。輸入框預設值 player1，
+                不改名字直接按「登入」的話，行為跟以前寫死自動登入 player1 完全一樣。
+              -->
+              <div class="player-id-row">
+                <input type="text" id="usernameInput" placeholder="輸入你的名字" value="player1" maxlength="20" />
+                <button id="loginBtn" class="secondary">登入</button>
+              </div>
+              <p class="small" id="loginStatus">尚未登入，戰績不會被記錄</p>
+              <button id="startBtn">▶ 開始 / 重新開始</button>
+            </div>
+            <!--
+              四個狀態顯示區塊，對應 app.js 的 updateLabels() 函式：
+              每次遊戲狀態改變（換人、擲骰、回合數增加、建塔）都會重新把最新數值寫進這四個 <b> 標籤裡。
+            -->
+            <div class="status">
+              <div class="stat"><small>目前回合</small><b id="turnLabel">—</b></div>
+              <div class="stat"><small>骰子點數</small><b id="diceLabel">—</b></div>
+              <div class="stat"><small>回合數</small><b id="roundLabel">0</b></div>
+              <div class="stat"><small>已建塔數</small><b id="towerCountLabel">0</b></div>
+            </div>
+          </div>
+
+          <!--
+            三個操作按鈕，對應玩家一個回合的標準流程：擲骰 -> 移動 -> 結束回合。
+            一開始都是 disabled（灰掉不能按），app.js 會依照目前輪到誰、進行到哪個步驟，
+            動態切換這三顆按鈕的 disabled 狀態，避免玩家亂按（例如還沒擲骰就想移動）。
+          -->
+          <div class="top-row">
+            <div class="controls">
+              <button id="rollBtn" disabled>🎲 擲骰子</button>
+              <button id="moveBtn" disabled>✈ 起飛 / 移動</button>
+              <button id="endBtn" disabled>⏎ 結束回合</button>
+            </div>
+          </div>
+
+          <!--
+            棋盤本體：這裡一開始是空的 <div>！
+            app.js 的 drawBoard() 函式會用 JavaScript 動態產生棋盤格子、機坪、飛機、塔等所有畫面元素，
+            並塞進這個容器裡。每次遊戲狀態改變時，drawBoard() 都會清空重畫一次
+            （board.innerHTML = ''），是最單純但足夠應付這個規模遊戲的畫面更新方式。
+          -->
+          <div id="board" class="board-root"></div>
+
+          <!--
+            最近戰績：內容完全由 app.js 的 renderHistory() 動態產生（一開始只有這行純文字提示），
+            資料來源是 GET /api/games/history?userId=，回傳目前登入者最近 5 局的紀錄
+            （結果、時間、回合數、玩家/AI 步數、建塔數）。每次表明身分、每局結束後都會重新載入一次。
+          -->
+          <section class="history-panel">
+            <div class="history-header">
+              <h3>最近戰績</h3>
+              <span>最近 5 局</span>
+            </div>
+            <div id="historyBody">
+              <p class="history-empty">尚未載入歷史紀錄。</p>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ===== 右欄：事件紀錄 + 資料庫展示 ===== -->
+      <aside class="right-col">
+        <!-- 事件紀錄面板：app.js 的 log(msg, type) 函式會在這裡用 prepend() 把每一則新訊息插入最上方 -->
+        <div class="card log-panel">
+          <div class="log-header">
+            <h3>事件紀錄</h3>
+            <span>最新動作會顯示於此</span>
+          </div>
+          <div class="body">
+            <div class="log" id="log"></div>
+          </div>
+        </div>
+
+        <!--
+          資料庫驗證概念表格：純靜態文字，用來對照說明「後端四張資料表分別存了什麼、用途是什麼」，
+          幫助不熟資料庫的人理解這個 demo 專案的後端設計概念，跟目前畫面上的即時遊戲資料沒有直接綁定。
+        -->
+        <section class="card db-panel">
+          <div class="card-header">
+            <div>
+              <h2>資料庫驗證概念</h2>
+              <p class="subtitle">展示模型與實際資料對應</p>
+            </div>
+          </div>
+          <div class="body">
+            <table class="table">
+              <thead><tr><th>表格</th><th>本展示對應資料</th><th>用途</th></tr></thead>
+              <tbody>
+                <tr><td>users</td><td>player1、勝敗統計</td><td>使用者與總勝敗</td></tr>
+                <tr><td>games</td><td>result、turn_count、used_tower_count</td><td>遊戲紀錄</td></tr>
+                <tr><td>towers</td><td>砲塔、冰霧塔、雷達塔</td><td>塔種資料</td></tr>
+                <tr><td>game_towers</td><td>某局在 A05 / C12 等塔位放了哪種塔</td><td>串接 games 與 towers</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <div class="footer">建議 Demo 流程：開始遊戲 → 擲骰 → 移動 → 到塔位建塔 → 觀察 AI 回合 → 完成勝負結算</div>
+  </main>
+
+  <!--
+    遊戲結束彈窗：預設用 CSS（.modal 沒有 .show class 時 display:none）隱藏起來。
+    app.js 的 endGame() 判定出勝負後，會把 "show" 這個 class 加到 #resultModal 上讓它顯示，
+    並把結果文字寫進 #resultText / #resultDetail 這兩個元素。
+  -->
+  <div class="modal" id="resultModal">
+    <div class="box">
+      <h2>遊戲結束</h2>
+      <div class="resultBig" id="resultText"></div>
+      <p id="resultDetail"></p>
+      <button id="closeModal">回到遊戲</button>
+    </div>
+  </div>
+
+  <!-- 整個遊戲的邏輯大腦：所有互動、動畫、狀態管理、呼叫後端 API 都寫在這支檔案裡 -->
+  <script src="/app.js"></script>
+</body>
+</html>

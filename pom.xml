@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  這是 Maven 的專案設定檔（POM = Project Object Model）。
+  Maven 是 Java 世界最常見的建置工具之一，負責：
+    1. 管理這個專案依賴哪些外部函式庫（dependencies）
+    2. 定義專案怎麼編譯、打包、執行（build / plugins）
+  執行 `./mvnw spring-boot:run` 時，Maven 就是照著這份檔案的內容去抓套件、編譯、啟動程式。
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<!--
+	  parent：繼承 Spring Boot 官方提供的「起手式」設定（spring-boot-starter-parent）。
+	  好處是底下列的每個 spring-boot-starter-xxx 依賴都不用自己指定版本號，
+	  Spring Boot 官方已經幫忙搭配好互相相容的版本組合了。
+	-->
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>4.0.7</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+
+	<!-- 這個專案自己的座標：groupId + artifactId + version，三者合起來唯一識別這個專案 -->
+	<groupId>com.example</groupId>
+	<artifactId>demo</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>demo</name>
+	<description/>
+	<url/>
+	<licenses>
+		<license/>
+	</licenses>
+	<developers>
+		<developer/>
+	</developers>
+	<scm>
+		<connection/>
+		<developerConnection/>
+		<tag/>
+		<url/>
+	</scm>
+
+	<properties>
+		<!-- 這個專案用 Java 21 語法編譯 -->
+		<java.version>21</java.version>
+	</properties>
+
+	<!-- dependencies：列出這個專案需要用到的外部函式庫（Maven 會自動下載到本機） -->
+	<dependencies>
+
+		<!-- Actuator：提供 /actuator/health 等監控用的端點，方便觀察應用程式健康狀態 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
+		<!-- Web MVC：讓專案可以寫 @RestController / @Controller，內建一個 Tomcat 伺服器來接收 HTTP 請求 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+
+		<!-- Data JPA：讓我們可以用 @Entity 定義資料表、用 JpaRepository 操作資料庫，不用手寫 SQL -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+
+		<!-- Thymeleaf：伺服器端的 HTML 樣板引擎，負責把 templates/index.html 渲染成回應給瀏覽器的網頁 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-thymeleaf</artifactId>
+		</dependency>
+
+		<!-- MySQL JDBC 驅動：讓 Java 程式知道怎麼跟 MySQL 資料庫溝通。scope=runtime 表示只有執行時才需要，編譯期不需要 -->
+		<dependency>
+			<groupId>com.mysql</groupId>
+			<artifactId>mysql-connector-j</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- DevTools：開發階段用的小工具，偵測到程式碼變動時會自動重啟應用程式，加快開發迭代速度 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-devtools</artifactId>
+			<scope>runtime</scope>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- 測試用依賴（scope=test，只有跑測試時才會用到），提供撰寫 Spring MVC 測試所需的工具 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<!-- build：定義建置流程用到的外掛（plugin） -->
+	<build>
+		<plugins>
+			<!-- Spring Boot Maven Plugin：讓 `mvn package` 可以打包成一個「可直接執行」的 jar（內嵌 Tomcat），
+			     也讓 `mvn spring-boot:run` 這個指令可以直接啟動整個應用程式 -->
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
