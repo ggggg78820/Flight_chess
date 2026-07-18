@@ -1,9 +1,8 @@
 <!--
   這是整個「飛行棋塔防 AI 對戰」遊戲的唯一一張網頁。
-  當使用者瀏覽 http://localhost:8080/ 時，Spring Boot 的 HomeController 會回傳 "index"，
-  Thymeleaf 樣板引擎再把這個檔案渲染成完整 HTML 回傳給瀏覽器。
+  放在 src/main/resources/static/ 底下，Spring Boot 會把這裡的檔案當成純靜態資源，
+  使用者瀏覽 http://localhost:8080/ 時直接回傳這份 HTML，不經過任何樣板引擎渲染。
 
-  這份 HTML 本身沒有用到 Thymeleaf 的動態語法（例如 th:text），單純是一份靜態版面，
   所有「動態」的部分（棋盤畫面、回合狀態、AI 行動……）都是由頁面最下方載入的
   /app.js 這支 JavaScript，在瀏覽器端用 document.getElementById(...) 抓取這裡定義的元素、
   再動態修改內容或樣式做出來的。所以下面的註解，重點會放在「這個元素的 id/class

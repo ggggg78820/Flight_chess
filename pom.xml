@@ -68,12 +68,6 @@
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
 
-		<!-- Thymeleaf：伺服器端的 HTML 樣板引擎，負責把 templates/index.html 渲染成回應給瀏覽器的網頁 -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-thymeleaf</artifactId>
-		</dependency>
-
 		<!-- MySQL JDBC 驅動：讓 Java 程式知道怎麼跟 MySQL 資料庫溝通。scope=runtime 表示只有執行時才需要，編譯期不需要 -->
 		<dependency>
 			<groupId>com.mysql</groupId>
