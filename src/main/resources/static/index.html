@@ -17,8 +17,9 @@
   <!-- 從 Google Fonts 載入「思源黑體（Noto Sans TC）」，讓中文字顯示更好看 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-  <!-- 樣式表，路徑 /style.css 對應 src/main/resources/static/style.css（Spring Boot 預設把 static 目錄底下的檔案視為靜態資源，直接用網址路徑存取） -->
-  <link rel="stylesheet" href="/style.css" />
+  <!-- 樣式表，對應 src/main/resources/static/style.css。用相對路徑（不加開頭的 /）而不是 /style.css，
+       是為了同時相容 Spring Boot（服務在網域根目錄）跟 GitHub Pages（服務在 /Flight_chess/ 子路徑）兩種情境 -->
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <!-- 頁首：純裝飾用的標題區塊，.runway-line 是 CSS 動畫做出的跑道虛線效果 -->
@@ -242,6 +243,6 @@
   </div>
 
   <!-- 整個遊戲的邏輯大腦：所有互動、動畫、狀態管理、呼叫後端 API 都寫在這支檔案裡 -->
-  <script src="/app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
