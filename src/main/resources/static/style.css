@@ -149,14 +149,14 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 .start-box.compact button { width: 100%; }
 .chip-wrapper { display: flex; justify-content: flex-end; align-items: center; }
 
-/* 身分輸入區（輸入名字 + 登入按鈕），跟 app.js 的 identifyUser() 對應 */
+/* 身分輸入區（輸入名字 + 確認玩家按鈕），跟 app.js 的 identifyUser() 對應 */
 .player-id-row { display: flex; gap: 8px; margin-bottom: 8px; }
 .player-id-row input {
   flex: 1; min-width: 0; padding: 10px; border-radius: 10px;
   border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 13px;
 }
 .player-id-row input:focus { outline: 1px solid var(--accent); }
-/* 這裡要覆蓋掉 .start-box.compact button 的 width:100%，讓登入按鈕維持自己該有的寬度，跟輸入框並排 */
+/* 覆蓋 .start-box.compact button 的 width:100%，讓確認按鈕與輸入框並排 */
 .start-box.compact .player-id-row button { width: auto; flex: 0 0 auto; padding: 10px 14px; }
 #loginStatus { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
 

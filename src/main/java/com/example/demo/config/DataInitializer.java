@@ -29,9 +29,9 @@ public class DataInitializer {
     public CommandLineRunner initData(UserRepository userRepository, TowerRepository towerRepository) {
         return args -> {
             // 如果 users 資料表目前是空的，才建立一個預設帳號（避免每次重啟都重複新增）
-            // 帳號：player1 / 密碼：password —— 前端 app.js 會用這組帳密自動登入示範
+            // 建立預設玩家，開啟頁面後即可用 player1 延續戰績。
             if (userRepository.count() == 0) {
-                userRepository.save(new User("player1", "password"));
+                userRepository.save(new User("player1"));
             }
 
             // 塞入（或修正）三種塔的基本資料，type 欄位是跟前端遊戲邏輯裡比對用的字串

@@ -127,13 +127,13 @@
               <!--
                 身分輸入區：只填名字、不需要密碼，純粹讓後端知道「這次是誰在玩」，
                 好把這一局的勝敗紀錄掛在正確的名字底下。輸入框預設值 player1，
-                不改名字直接按「登入」的話，行為跟以前寫死自動登入 player1 完全一樣。
+                不改名字直接按「確認玩家」時，會使用預設名稱 player1 載入或建立戰績。
               -->
               <div class="player-id-row">
                 <input type="text" id="usernameInput" placeholder="輸入你的名字" value="player1" maxlength="20" />
-                <button id="loginBtn" class="secondary">登入</button>
+                <button id="loginBtn" class="secondary">確認玩家</button>
               </div>
-              <p class="small" id="loginStatus">尚未登入，戰績不會被記錄</p>
+              <p class="small" id="loginStatus">確認玩家名稱後即可記錄戰績</p>
               <button id="startBtn">▶ 開始 / 重新開始</button>
             </div>
             <!--
@@ -171,7 +171,7 @@
 
           <!--
             最近戰績：內容完全由 app.js 的 renderHistory() 動態產生（一開始只有這行純文字提示），
-            資料來源是 GET /api/games/history?userId=，回傳目前登入者最近 5 局的紀錄
+            資料來源是 GET /api/games/history?userId=，回傳目前玩家最近 5 局的紀錄
             （結果、時間、回合數、玩家/AI 步數、建塔數）。每次表明身分、每局結束後都會重新載入一次。
           -->
           <section class="history-panel">

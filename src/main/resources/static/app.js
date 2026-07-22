@@ -38,8 +38,8 @@
   const resultDetail     = document.getElementById('resultDetail');    // 彈窗裡的詳細數據
   const closeModal       = document.getElementById('closeModal');      // 彈窗的關閉按鈕
   const usernameInput    = document.getElementById('usernameInput');   // 身分輸入框（只填名字，不用密碼）
-  const loginBtn         = document.getElementById('loginBtn');        // 「登入」按鈕
-  const loginStatus      = document.getElementById('loginStatus');     // 登入狀態小字提示
+  const loginBtn         = document.getElementById('loginBtn');        // 「確認玩家」按鈕
+  const loginStatus      = document.getElementById('loginStatus');     // 玩家識別狀態小字提示
   const historyBody      = document.getElementById('historyBody');     // 最近戰績列表容器
 
   /*
@@ -82,7 +82,7 @@
   let state;
 
   // currentUser：目前表明身分的使用者資訊（{id, username, winCount, loseCount}）。
-  // 由 identifyUser() 在頁面載入時、或玩家按「登入」時向後端要來；如果後端連不上，會保持 null（離線模式）。
+  // 由 identifyUser() 在頁面載入時、或玩家按「確認玩家」時向後端取得；若後端連不上則保持 null。
   let currentUser = null;
 
   // ------------------------------------------------------------------
@@ -101,18 +101,20 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    return res.json();
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || '請求失敗');
+    return data;
   }
 
   /**
    * 表明身分：把 usernameInput 裡的名字送到後端 POST /api/users/identify。
-   * 這不是真正的帳號密碼登入——後端收到名字後，如果這個名字已經存在就直接沿用，
+   * 系統不使用帳號密碼——後端收到名字後，如果這個名字已經存在就直接沿用，
    * 不存在就自動建立一個新帳號，目的單純是「讓後端知道這次是誰在玩」，
    * 好把之後的遊戲結果掛在正確的名字底下（見 GameService.endGame()）。
    *
    * 呼叫時機有兩個：
    *   1. 頁面一載入就用輸入框的預設值（player1）自動呼叫一次，維持「打開就能玩」的體驗
-   *   2. 玩家自己在輸入框改名字、按下「登入」按鈕時
+   *   2. 玩家自己在輸入框改名字、按下「確認玩家」按鈕時
    *
    * 成功：把後端回傳的使用者 id、累計勝敗場次存進 currentUser，之後開始/結束遊戲時都會用到。
    * 失敗或連不上後端：不會讓整個遊戲壞掉，只是在紀錄區跟 loginStatus 提示「離線模式」，
@@ -120,17 +122,17 @@
    */
   async function identifyUser(username) {
     username = (username || '').trim();
-    if (!username) { loginStatus.textContent = '請輸入名字才能登入。'; return; }
+    if (!username) { loginStatus.textContent = '請輸入玩家名稱。'; return; }
     try {
       const data = await apiPost('/api/users/identify', { username });
       currentUser = { id: data.userId, username: data.username, winCount: data.winCount, loseCount: data.loseCount };
-      loginStatus.textContent = `已登入為 ${currentUser.username}（累計 勝 ${currentUser.winCount} / 敗 ${currentUser.loseCount}）`;
-      log(`已連線資料庫，${data.isNewUser ? '建立新帳號並' : ''}登入為 ${currentUser.username}（累計 勝 ${currentUser.winCount} / 敗 ${currentUser.loseCount}）。`, 's');
+      loginStatus.textContent = `目前玩家：${currentUser.username}（累計 勝 ${currentUser.winCount} / 敗 ${currentUser.loseCount}）`;
+      log(`已連線資料庫，${data.isNewUser ? '建立新玩家' : '載入玩家'} ${currentUser.username}（累計 勝 ${currentUser.winCount} / 敗 ${currentUser.loseCount}）。`, 's');
       loadHistory(); // 換了身分（或第一次載入頁面）之後，最近戰績列表也要跟著換成這個人的紀錄
     } catch (e) {
       // fetch 在網路完全不通、後端沒啟動時會直接 reject（拋出例外），用 try/catch 接住，避免整支程式中斷
-      loginStatus.textContent = '無法連線後端，將以離線模式進行（戰績不會儲存）。';
-      log('無法連線後端資料庫，將以離線模式進行（戰績不會儲存）。', 's');
+      loginStatus.textContent = e.message || '無法確認玩家，將以離線模式進行。';
+      log(`${e.message || '無法連線後端資料庫'}，戰績不會儲存。`, 's');
     }
   }
 
@@ -202,7 +204,7 @@
    *   round         - 目前第幾回合（雙方各走一輪算一回合結束，見 nextTurn()）
    *   moved         - 這一回合玩家是否已經移動過（目前程式碼有設定但沒有實際拿來做判斷，保留給未來擴充用）
    *   towerCount    - 目前棋盤上總共蓋了幾座塔（雙方加總）
-   *   user          - 顯示用的使用者資訊，初始的勝敗場次會從 currentUser（登入結果）帶入，
+   *   user          - 顯示用的使用者資訊，初始勝敗場次會從 currentUser（玩家識別結果）帶入，
    *                   如果還沒表明身分成功就先用 0/0，等 identifyUser() 完成後下一次開新局才會是正確數字
    *   games         - 這個瀏覽器分頁這次執行期間，已經打完的對局摘要陣列（僅存在記憶體，重新整理頁面就會消失）
    *   player / ai   - 雙方陣營各自的狀態：
@@ -601,7 +603,7 @@
   }
 
   /**
-   * 向後端 GET /api/games/history?userId= 取回目前登入者最近 5 局的紀錄，
+   * 向後端 GET /api/games/history?userId= 取回目前玩家最近 5 局的紀錄，
    * 並呼叫 renderHistory() 把結果畫進「最近戰績」面板。
    * 離線模式（currentUser 是 null）直接跳過，畫面維持顯示原本的提示文字。
    */
@@ -733,10 +735,10 @@
   // 結算彈窗的「回到遊戲」按鈕：單純把 .show 這個 class 移除，讓彈窗依照 CSS 規則變回隱藏狀態
   closeModal.addEventListener('click', () => resultModal.classList.remove('show'));
 
-  // 「登入」按鈕：拿輸入框目前的名字重新表明身分。如果玩家在遊戲玩到一半才改名字按登入，
+  // 「確認玩家」按鈕：拿輸入框目前的名字重新表明身分。
   // 只會影響「之後」開新局時 newState() 帶入的顯示資料，不會打斷正在進行中的這一局。
   loginBtn.addEventListener('click', () => identifyUser(usernameInput.value));
-  // Enter 鍵也能觸發登入，不用一定要用滑鼠點按鈕
+  // Enter 鍵也能確認玩家，不用一定要用滑鼠點按鈕
   usernameInput.addEventListener('keydown', e => { if (e.key === 'Enter') identifyUser(usernameInput.value); });
 
   // ------------------------------------------------------------------

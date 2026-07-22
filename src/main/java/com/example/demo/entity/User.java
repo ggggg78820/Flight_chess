@@ -1,6 +1,5 @@
 package com.example.demo.entity;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -26,14 +25,11 @@ public class User {
     @Column(nullable = false, unique = true)
     private String username;
 
-    // 使用者密碼。
-    // @JsonProperty(access = WRITE_ONLY) 的意思是：
-    //   - 前端傳 JSON 進來（例如註冊）時，這個欄位「可以」被寫入
-    //   - 但這個物件被轉成 JSON 回傳給前端時，這個欄位「不會」被輸出
-    // 這樣可以避免登入 / 查詢個人資料的 API 不小心把密碼洩漏到回應內容裡。
+    // 舊資料庫相容欄位。系統已不提供密碼註冊或登入；保留映射是為了讓既有
+    // password NOT NULL 欄位在 ddl-auto=update 環境中仍可正常新增玩家。
+    // 此欄位沒有 getter/setter，也不會出現在任何 API。
     @Column(nullable = false)
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private String password;
+    private String password = "";
 
     // 累計勝場數，預設 0。每次 /api/games/end 判定玩家獲勝時，GameService 會把這個數字 +1。
     @Column(name = "win_count")
@@ -47,7 +43,7 @@ public class User {
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    // 最後一次登入時間，登入成功時由 UserService 更新
+    // 最後一次確認玩家身分的時間
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
 
@@ -56,9 +52,8 @@ public class User {
     }
 
     // 方便在程式碼裡快速建立一個新使用者（例如 DataInitializer 建立預設帳號時）
-    public User(String username, String password) {
+    public User(String username) {
         this.username = username;
-        this.password = password;
     }
 
     // ------------------------------------------------------------------
@@ -81,14 +76,6 @@ public class User {
 
     public void setUsername(String username) {
         this.username = username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
     }
 
     public Integer getWinCount() {
