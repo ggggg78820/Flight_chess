@@ -1,24 +1,25 @@
 /*
   這是整個遊戲畫面的樣式表。
-  設計採用深色科幻／機場跑道風格，主要靠 CSS 變數（自訂屬性）統一管理配色，
+  設計採用淺色藍天／機場跑道風格，主要靠 CSS 變數（自訂屬性）統一管理配色，
   這樣之後想換整體色調，只需要改最上面 :root 區塊裡的顏色值即可，不用每個地方都改。
 */
 :root {
-  --bg:       #0a0f1e; /* 整個頁面的背景色（深藍黑） */
-  --panel:    #111827; /* 卡片（.card）的背景色 */
-  --panel2:   #1a2235; /* 卡片內「次一層」區塊的背景色，例如 card-header、controls */
-  --border:   #2a3a55; /* 卡片、按鈕等元素統一使用的邊框顏色 */
-  --accent:   #4fc3f7; /* 主要強調色（藍），用在標題、擲骰按鈕等 */
-  --accent2:  #f5c842; /* 次要強調色（金黃），用在 Logo 文字、統計數字、彈窗標題 */
-  --green:    #34d399; /* 玩家陣營代表色 */
-  --red:      #f87171; /* AI 陣營代表色 */
+  --bg:       #C4E1FF; /* 整個頁面的背景色（淺藍天） */
+  --panel:    #FFFFFF; /* 卡片（.card）的背景色 */
+  --panel2:   #E4F0FF; /* 卡片內「次一層」區塊的背景色，例如 card-header、controls */
+  --border:   #A9CBEF; /* 卡片、按鈕等元素統一使用的邊框顏色 */
+  --accent:   #2828FF; /* 主要強調色（深藍），在淺色底上有足夠對比，用在標題文字、按鈕文字、格線強調等 */
+  --accent2:  #84C1FF; /* 次要強調色（亮藍），用在淡色調底色、光暈、裝飾線條 */
+  --accent2-soft: #123A91; /* 比 --accent 更深一階的藍，用在大標題、統計數字等需要視覺重量的地方，和 --accent 做出層次區隔 */
+  --green:    #0f9d68; /* 玩家陣營代表色（比原本深，確保在淺色底上仍清楚可讀） */
+  --red:      #dc2626; /* AI 陣營代表色（同上） */
   --purple:   #a78bfa; /* 塔（防禦建築）代表色 */
-  --text:     #e2e8f0; /* 一般文字顏色 */
-  --muted:    #64748b; /* 次要／說明文字顏色（比較不顯眼） */
-  --player-c: #34d399; /* 玩家顏色（目前程式碼實際上是直接寫死色碼，這個變數保留給未來擴充用） */
-  --ai-c:     #f87171; /* AI 顏色（同上） */
-  --glow-blue: 0 0 16px rgba(79,195,247,.35); /* 藍色光暈陰影，做出霓虹發光的視覺效果 */
-  --glow-gold: 0 0 16px rgba(245,200,66,.35); /* 金色光暈陰影 */
+  --text:     #14213d; /* 一般文字顏色（深藍黑，淺色底上使用） */
+  --muted:    #4b5a72; /* 次要／說明文字顏色（比較不顯眼，但仍保持在淺色底上可讀的深度） */
+  --player-c: #0f9d68; /* 玩家顏色（目前程式碼實際上是直接寫死色碼，這個變數保留給未來擴充用） */
+  --ai-c:     #dc2626; /* AI 顏色（同上） */
+  --glow-blue: 0 0 16px rgba(132,193,255,.45); /* 亮藍光暈陰影，做出霓虹發光的視覺效果 */
+  --glow-gold: 0 0 16px rgba(40,40,255,.35); /* 深藍光暈陰影 */
 }
 
 /* 全域重置：把瀏覽器預設的 margin / padding 都清掉，並統一用 border-box 計算寬高（比較符合直覺，寬度包含 padding 和 border） */
@@ -33,14 +34,14 @@ header {
   position: relative; overflow: hidden;
   padding: 22px 28px 18px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(105deg, #06101f 60%, #0d1f38); /* 斜角漸層背景，增加科技感 */
+  background: linear-gradient(105deg, #EAF3FF 60%, #C9E4FF); /* 斜角漸層背景，增加科技感 */
 }
 /* ::before 偽元素：在標題右側疊一個超大的半透明飛機符號當背景裝飾，純視覺效果，不影響版面配置（pointer-events:none 讓滑鼠事件穿透它） */
 header::before {
   content: '✈'; position: absolute; right: 28px; top: 50%; transform: translateY(-50%);
   font-size: 72px; opacity: .06; pointer-events: none;
 }
-header h1 { font-size: 22px; font-weight: 900; letter-spacing: .08em; color: var(--accent2); text-shadow: 0 0 18px rgba(245,200,66,.45); }
+header h1 { font-size: 22px; font-weight: 900; letter-spacing: .08em; color: var(--accent2-soft); text-shadow: 0 0 18px rgba(40,40,255,.45); }
 header h1 span { color: var(--accent); } /* 標題裡 <span>AI 對戰</span> 這段文字用另一種強調色 */
 header p { margin-top: 5px; font-size: 13px; color: var(--muted); }
 
@@ -55,7 +56,7 @@ header p { margin-top: 5px; font-size: 13px; color: var(--muted); }
 .card .body { padding: 16px; }
 
 /* 小圓角標籤（例如頁面上「2-3 分鐘上手」那個小標籤） */
-.chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(79,195,247,.12); color: var(--accent); font-size: 12px; font-weight: 700; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(132,193,255,.12); color: var(--accent); font-size: 12px; font-weight: 700; }
 
 /* ── CONTROLS：擲骰子／移動／結束回合 三顆按鈕的外層容器與按鈕通用樣式 ── */
 .controls {
@@ -73,17 +74,31 @@ button {
 button:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); } /* 滑鼠移入時微微上浮 + 變透明，但 disabled 的按鈕不套用這個效果 */
 button:active:not(:disabled) { transform: translateY(0); } /* 按下瞬間回到原位，做出「按壓感」 */
 button:disabled { opacity: .3; cursor: not-allowed; } /* app.js 會動態切換按鈕的 disabled 屬性，這裡負責讓「不能按」的按鈕看起來就是灰灰的不能按 */
-#rollBtn   { background: var(--accent);  color: #0a0f1e; box-shadow: var(--glow-blue); }
-#moveBtn   { background: var(--green);   color: #0a0f1e; }
+#rollBtn   { background: var(--accent);  color: #fff; box-shadow: var(--glow-blue); }
+#moveBtn   { background: var(--green);   color: #fff; }
 #endBtn    { background: var(--panel2);  color: var(--muted); border: 1px solid var(--border); }
 button.warn      { background: #fb923c; color: #0a0f1e; } /* 建塔選單裡「砲塔」按鈕用的警示橘色 */
 button.secondary { background: var(--panel2); color: var(--accent); border: 1px solid var(--border); }
 
 /* ── STATUS：回合／骰子／回合數／建塔數 四格統計資訊 ── */
-.status { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
+.status { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; align-content: start; }
 .stat { background: var(--panel2); border: 1px solid var(--border); border-radius: 14px; padding: 14px 12px; text-align: center; }
+/* 玩家識別狀態（原本在左側「準備起飛？」卡片內），移到這裡跟四格統計資訊同一個右欄，
+   用 grid-column: 1 / -1 讓它橫跨全部 4 欄，填滿統計格下方原本空白的區域 */
+.status #loginStatus {
+  grid-column: 1 / -1;
+  margin: 0;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent2-soft);
+  text-align: center;
+}
 .stat small { display: block; font-size: 11px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px; }
-.stat b { display: block; font-size: 22px; font-weight: 900; color: var(--accent2); } /* 這個 <b> 標籤就是 app.js updateLabels() 會動態改內容的地方 */
+.stat b { display: block; font-size: 22px; font-weight: 900; color: var(--accent2-soft); } /* 這個 <b> 標籤就是 app.js updateLabels() 會動態改內容的地方 */
 
 /* ── BOARD：棋盤格子樣式 ── */
 /*
@@ -95,33 +110,33 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
   position: absolute; width: 8.8%; height: 8.8%;
   border-radius: 10px; border: 2px solid #1e3252;
   display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700; color: #5b7aaa;
+  font-size: 10px; font-weight: 700; color: #3f5a82;
 }
-.cell.path      { background: rgba(255,255,255,.05); } /* 一般路徑格 */
-.cell.start     { background: rgba(245,200,66,.18); border-color: rgba(245,200,66,.5); color: var(--accent2); } /* 起點格（第 0 格） */
-.cell.jump      { background: rgba(79,195,247,.15); border-color: rgba(79,195,247,.4); color: var(--accent); } /* 飛躍格 */
-.cell.towerSpot { background: rgba(52,211,153,.12); border-color: rgba(52,211,153,.4); color: var(--green); } /* 可建塔格 */
+.cell.path      { background: #FFA042; color: var(--text); } /* 一般路徑格：指定橘色 */
+.cell.start     { background: #46A3FF; border-color: #12206b; color: var(--text); } /* 起點格（第 0 格）：指定藍色 */
+.cell.jump      { background: var(--accent2); border-color: #4a7fc9; color: var(--accent2-soft); } /* 飛躍格：實色亮藍 */
+.cell.towerSpot { background: #CA8EFF; border-color: #6a1fb0; color: var(--text); } /* 可建塔格：指定紫色 */
 .cell.finish {
   width: 14%; height: 14%;
-  background: radial-gradient(circle, rgba(245,200,66,.4), rgba(245,200,66,.1));
-  border: 2px solid var(--accent2); border-radius: 50%;
-  color: var(--accent2); font-size: 13px; font-weight: 900; letter-spacing: .05em;
-  box-shadow: 0 0 18px rgba(245,200,66,.4); z-index: 5; /* 終點格畫成一個發光圓形，比其他格子大一些 */
+  background: #006000;
+  border: 2px solid #003d00; border-radius: 50%;
+  color: #fff; font-size: 13px; font-weight: 900; letter-spacing: .05em;
+  box-shadow: 0 0 18px rgba(0,96,0,.4); z-index: 5; /* 終點格畫成一個發光圓形，比其他格子大一些 */
 }
 /* 用 ::after 偽元素在格子右下角疊加小圖示文字，區分飛躍格 / 可建塔格，不用額外加 HTML 元素 */
-.cell::after { position: absolute; font-size: 13px; bottom: -5px; right: -3px; }
+.cell::after { position: absolute; font-size: 26px; line-height: 1; bottom: 4px; right: 4px; }
 .cell.jump::after      { content: "✈"; }
-.cell.towerSpot::after { content: "⬡"; color: var(--green); opacity: .7; }
+.cell.towerSpot::after { content: "⬡"; color: #6F00D2; opacity: .7; }
 
 /* ── 機坪（尚未起飛的飛機停放區） ── */
 .hangar {
   position: absolute; border-radius: 14px;
   padding: 8px 10px; font-size: 11px; font-weight: 900;
-  text-align: center; border: 1px dashed; backdrop-filter: blur(4px); /* 虛線邊框 + 毛玻璃模糊效果 */
+  text-align: center; border: 1px dashed; /* 虛線邊框 */
 }
 .hangar-label { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; display: block; }
-.hangar.player { left: 20%; bottom: 20%; width: 26%; min-height: 26%; background: rgba(52,211,153,.08); border-color: rgba(52,211,153,.35); color: var(--green); } /* 玩家機坪固定畫在棋盤左下角 */
-.hangar.ai     { right: 20%; top: 20%;  width: 26%; min-height: 26%; background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.35); color: var(--red); } /* AI 機坪固定畫在棋盤右上角 */
+.hangar.player { left: 20%; bottom: 20%; width: 26%; min-height: 26%; background: rgba(129,192,192,.5); border-color: #4a8f8f; color: var(--text); } /* 玩家機坪固定畫在棋盤左下角，指定藍綠色，透明度 50% */
+.hangar.ai     { right: 20%; top: 20%;  width: 26%; min-height: 26%; background: rgba(255,181,181,.5); border-color: #d97a7a; color: var(--text); } /* AI 機坪固定畫在棋盤右上角，指定紅色，透明度 50% */
 .hangar-planes { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; min-height: 34px; align-items: center; } /* 機坪裡飛機圖示用 flex 自動排列 */
 
 /* ── 飛機棋子與塔的樣式 ── */
@@ -164,9 +179,9 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 #board {
   position: relative; margin: auto;
   width: min(720px, 100%); aspect-ratio: 1/1;
-  background: radial-gradient(ellipse at 50% 50%, #0d1f38 30%, #060d18);
+  background: radial-gradient(ellipse at 50% 50%, #FFF6E0 30%, #FFD98A);
   border: 6px solid #1b2d4a; border-radius: 20px;
-  box-shadow: inset 0 0 40px rgba(0,0,0,.6), 0 0 30px rgba(79,195,247,.08);
+  box-shadow: inset 0 0 30px rgba(120,72,0,.12), 0 0 30px rgba(255,180,60,.3);
   overflow: hidden;
 }
 .board-root { width: 100%; display:flex; align-items:center; justify-content:center; padding: 12px; }
@@ -174,17 +189,17 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 /* 事件紀錄面板：.log 固定高度並可垂直捲動，最新訊息會用 prepend 加到最上面 */
 .log-panel { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--panel2); }
 .log-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
-.log-header h3 { margin: 0; font-size: 14px; color: var(--accent2); }
+.log-header h3 { margin: 0; font-size: 14px; color: var(--accent2-soft); }
 .log-header span { color: var(--muted); font-size: 12px; }
 .log { min-height: 400px; height: 440px; overflow-y: auto; padding: 14px 16px; font-size: 13px; line-height: 1.6; }
 
-.start-box { border: 1px solid var(--border); border-radius: 16px; padding: 18px; background: rgba(79,195,247,.06); margin-bottom: 16px; }
-.start-box h3 { margin: 0 0 8px; color: var(--accent2); }
+.start-box { border: 1px solid var(--border); border-radius: 16px; padding: 18px; background: rgba(40,40,255,.05); margin-bottom: 16px; }
+.start-box h3 { margin: 0 0 8px; color: var(--accent2-soft); }
 .start-box p { color: var(--muted); line-height: 1.7; margin-bottom: 16px; }
 
 /* 教學提示區塊（對應 index.html 裡的 #tipTitle / #tipText），左側有一條強調色的邊條，視覺上像便利貼提示 */
-.tutorial { border-left: 4px solid var(--accent); background: rgba(79,195,247,.08); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
-.tutorial h3 { margin: 0 0 10px; color: var(--accent2); font-size: 15px; }
+.tutorial { border-left: 4px solid var(--accent); background: rgba(40,40,255,.06); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+.tutorial h3 { margin: 0 0 10px; color: var(--accent2-soft); font-size: 15px; }
 .tutorial div { color: var(--text); line-height: 1.75; }
 
 .tower-choice-panel { border: 1px solid var(--border); border-radius: 16px; padding: 16px; background: rgba(52,211,153,.05); }
@@ -196,12 +211,12 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 .rule-panel .body { display: grid; gap: 18px; }
 .rules { display: grid; gap: 12px; grid-template-columns: 1fr; }
 .rule { background: var(--panel2); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; }
-.rule b { display: block; color: var(--accent2); font-size: 14px; margin-bottom: 8px; }
+.rule b { display: block; color: var(--accent2-soft); font-size: 14px; margin-bottom: 8px; }
 .rule .small { display: block; color: var(--muted); font-size: 13px; line-height: 1.7; }
 .tower-types-panel { display: grid; grid-template-columns: 1fr; gap: 12px; }
 
 .rule-panel-wrapper { margin-top: 14px; display: grid; gap: 12px; }
-.tower-types-panel .tower-card { padding: 16px; border-radius: 16px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); text-align: center; }
+.tower-types-panel .tower-card { padding: 16px; border-radius: 16px; background: rgba(20,33,61,.03); border: 1px solid rgba(20,33,61,.10); text-align: center; }
 .tower-types-panel .tower-card .icon { display: block; font-size: 28px; margin-bottom: 10px; }
 .tower-types-panel .tower-card strong { display: block; color: var(--accent); margin-bottom: 8px; }
 .tower-types-panel .tower-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
@@ -212,7 +227,7 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 .table th, .table td { border: 1px solid var(--border); padding: 12px 14px; text-align: left; vertical-align: top; word-break: break-word; }
 .table th { background: var(--panel2); color: var(--accent); font-size: 12px; letter-spacing: .07em; text-transform: uppercase; }
 .table td { color: var(--muted); }
-.table td:first-child { color: var(--accent2); font-weight: 700; }
+.table td:first-child { color: var(--accent2-soft); font-weight: 700; }
 .table th:nth-child(1), .table td:nth-child(1) { width: 22%; }
 .table th:nth-child(2), .table td:nth-child(2) { width: 50%; }
 .table th:nth-child(3), .table td:nth-child(3) { width: 28%; }
@@ -220,7 +235,7 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 /* ── 最近戰績面板：棋盤下方，內容由 app.js 的 renderHistory() 動態產生 ── */
 .history-panel { border: 1px solid var(--border); border-radius: 16px; margin-top: 18px; overflow: hidden; background: var(--panel2); }
 .history-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
-.history-header h3 { margin: 0; font-size: 14px; color: var(--accent2); }
+.history-header h3 { margin: 0; font-size: 14px; color: var(--accent2-soft); }
 .history-header span { color: var(--muted); font-size: 12px; }
 #historyBody { padding: 14px 16px; }
 .history-empty { color: var(--muted); font-size: 13px; }
@@ -238,14 +253,14 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 /* 預設 display:none 隱藏；app.js 幫 #resultModal 加上 .show 這個 class 之後，下面這條規則才會讓它以 flex 顯示出來並置中 */
 .modal { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: none; align-items: center; justify-content: center; z-index: 99; backdrop-filter: blur(6px); }
 .modal.show { display: flex; }
-.modal .box { background: var(--panel); border: 1px solid var(--border); border-radius: 20px; max-width: 480px; width: 90%; padding: 28px; box-shadow: 0 0 40px rgba(79,195,247,.15), 0 30px 60px rgba(0,0,0,.5); }
-.modal h2 { color: var(--accent2); margin-bottom: 12px; }
-.resultBig { font-size: 56px; font-weight: 900; text-align: center; color: var(--accent2); text-shadow: 0 0 30px rgba(245,200,66,.5); padding: 16px 0; }
+.modal .box { background: var(--panel); border: 1px solid var(--border); border-radius: 20px; max-width: 480px; width: 90%; padding: 28px; box-shadow: 0 0 40px rgba(132,193,255,.15), 0 30px 60px rgba(0,0,0,.5); }
+.modal h2 { color: var(--accent2-soft); margin-bottom: 12px; }
+.resultBig { font-size: 56px; font-weight: 900; text-align: center; color: var(--accent2-soft); text-shadow: 0 0 30px rgba(40,40,255,.5); padding: 16px 0; }
 #resultDetail { color: var(--muted); font-size: 14px; line-height: 1.7; margin: 10px 0 18px; }
-#closeModal { width: 100%; padding: 12px; background: var(--accent2); color: #0a0f1e; font-size: 15px; border-radius: 10px; }
+#closeModal { width: 100%; padding: 12px; background: var(--accent2); color: var(--text); font-size: 15px; border-radius: 10px; }
 
 /* 保留給未來用的「高亮」樣式（例如引導教學時框住某個元素），目前 app.js 沒有實際加上這個 class */
-.highlight { outline: 3px solid var(--accent2) !important; animation: pulse 1s infinite; }
+.highlight { outline: 3px solid var(--accent2-soft) !important; animation: pulse 1s infinite; }
 @keyframes pulse { 50% { outline-color: var(--accent); } }
 
 /* ── RESPONSIVE：響應式設計，視窗變窄時把三欄改成單欄堆疊，避免內容擠壓變形 ── */
@@ -267,4 +282,4 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 
 /* 頁首那條會一直往右跑的跑道虛線動畫，純裝飾用，跟遊戲邏輯無關 */
 @keyframes runway { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }
-.runway-line { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: repeating-linear-gradient(90deg, transparent 0, transparent 16px, var(--accent2) 16px, var(--accent2) 28px); animation: runway 6s linear infinite; opacity: .6; }
+.runway-line { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: repeating-linear-gradient(90deg, transparent 0, transparent 16px, var(--accent) 16px, var(--accent) 28px); animation: runway 6s linear infinite; opacity: .6; }
