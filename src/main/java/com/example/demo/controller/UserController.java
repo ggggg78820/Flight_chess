@@ -42,13 +42,7 @@ public class UserController {
      * 前端 app.js 的 identifyUser() 會呼叫這個端點，取代原本寫死 player1 的做法。
      */
     @PostMapping("/identify")
-    public ResponseEntity<?> identify(@RequestBody IdentifyRequest request) {
-        try {
-            return ResponseEntity.ok(userService.identify(request));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
-        }
+    public ResponseEntity<IdentifyResponse> identify(@RequestBody IdentifyRequest request) {
+        return ResponseEntity.ok(userService.identify(request));
     }
-
-    private record ErrorResponse(String message) {}
 }

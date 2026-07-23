@@ -3,6 +3,7 @@ package com.example.demo.service;
 import com.example.demo.dto.IdentifyRequest;
 import com.example.demo.dto.IdentifyResponse;
 import com.example.demo.entity.User;
+import com.example.demo.exception.ApiException;
 import com.example.demo.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 
@@ -32,12 +33,13 @@ class UserServiceTests {
 
     @Test
     void identifyRejectsInvalidPlayerName() {
-        IllegalArgumentException error = assertThrows(
-                IllegalArgumentException.class,
+        ApiException error = assertThrows(
+                ApiException.class,
                 () -> userService.identify(new IdentifyRequest("a!"))
         );
 
         assertTrue(error.getMessage().contains("2～20"));
+        assertEquals("INVALID_USERNAME", error.getCode());
         verifyNoInteractions(userRepository);
     }
 }

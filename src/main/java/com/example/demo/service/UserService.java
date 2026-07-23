@@ -4,8 +4,10 @@ import com.example.demo.dto.IdentifyRequest;
 import com.example.demo.dto.IdentifyResponse;
 import com.example.demo.dto.UserProfileResponse;
 import com.example.demo.entity.User;
+import com.example.demo.exception.ApiException;
 import com.example.demo.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -70,7 +72,8 @@ public class UserService {
     private String normalizeUsername(String username) {
         String normalized = username == null ? "" : username.trim();
         if (!USERNAME_PATTERN.matcher(normalized).matches()) {
-            throw new IllegalArgumentException("玩家名稱須為 2～20 字，且只能包含中英文字母、數字、底線或連字號");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_USERNAME",
+                    "玩家名稱須為 2～20 字，且只能包含中英文字母、數字、底線或連字號");
         }
         return normalized;
     }
