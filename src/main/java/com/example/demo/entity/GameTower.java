@@ -40,6 +40,12 @@ public class GameTower {
     @Column(name = "owner")
     private String owner;
 
+    // 這座塔的技能在遊戲結束前有沒有被觸發過。規則：塔的技能只能觸發一次，觸發後即失效，
+    // 同一塔位可以再蓋新塔——這個欄位就是用來記錄「這一筆塔紀錄」實際有沒有被用掉，
+    // 讓資料庫能還原出「有使用過的塔別跟數量」，不只是「蓋過的塔別跟數量」。
+    @Column(name = "used")
+    private boolean used;
+
     // 建立時間
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -48,12 +54,13 @@ public class GameTower {
     public GameTower() {
     }
 
-    // 方便一次帶入「哪一局」「哪種塔」「蓋在哪一格」「哪一方蓋的」四個關聯資訊來建立一筆紀錄
-    public GameTower(Game game, Tower tower, Integer boardPosition, String owner) {
+    // 方便一次帶入「哪一局」「哪種塔」「蓋在哪一格」「哪一方蓋的」「技能有沒有觸發過」五個資訊來建立一筆紀錄
+    public GameTower(Game game, Tower tower, Integer boardPosition, String owner, boolean used) {
         this.game = game;
         this.tower = tower;
         this.boardPosition = boardPosition;
         this.owner = owner;
+        this.used = used;
     }
 
     // ------------------------------------------------------------------
@@ -98,6 +105,14 @@ public class GameTower {
 
     public void setOwner(String owner) {
         this.owner = owner;
+    }
+
+    public boolean isUsed() {
+        return used;
+    }
+
+    public void setUsed(boolean used) {
+        this.used = used;
     }
 
     public LocalDateTime getCreatedAt() {

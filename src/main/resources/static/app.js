@@ -212,7 +212,12 @@
    *                     freeze   - 是否處於「被冰霧塔影響，下一次骰子 -1」的狀態
    *                     jam      - 是否處於「被雷達塔影響，下一次不能飛躍」的狀態
    *                     finished - 已經抵達終點的飛機數量
-   *   towers        - 棋盤上目前所有塔的陣列，每個元素是 {owner, type, pos}
+   *   towers        - 這一局裡蓋過的所有塔的陣列（含已失效的），每個元素是 {owner, type, pos, used}。
+   *                   used=false 代表還在生效中、目前佔用著那個塔位；used=true 代表技能已經觸發過一次、
+   *                   已經失效，那個塔位可以再蓋新塔（見 canBuild()/buildTower() 的規則說明）。
+   *                   一局不限制總共能蓋幾座塔，所以這個陣列可能比 5（塔位數量）還長。
+   *   usedTowerStats - 依塔種代號統計「技能已經觸發過幾次」，例如 {cannon:2, freeze:1, radar:0}，
+   *                   用來在結算畫面顯示「有使用過的塔別跟數量」。
    *   currentGame   - 這一局遊戲的統計資料（含 player_moves/ai_moves：雙方各自實際移動飛機的次數），
    *                   結束時會拿來組成結算畫面內容、也會送給後端 /api/games/end
    */
@@ -223,6 +228,7 @@
       player:{ planes:[-1,-1,-1,-1], freeze:false, jam:false, finished:0 },
       ai:    { planes:[-1,-1,-1,-1], freeze:false, jam:false, finished:0 },
       towers:[],
+      usedTowerStats:{},
       currentGame:{ id:Date.now(), result:null, turn_count:0, used_tower_count:0, player_moves:0, ai_moves:0 }
     };
   }
@@ -350,15 +356,19 @@
       }
     });
 
-    // 步驟 3：把 state.towers 裡記錄的每一座塔，依照它的棋盤位置畫出來
-    state.towers.forEach(t => {
+    // 步驟 3：把每個塔位上「目前最新一筆」塔的紀錄畫出來。因為技能失效後同一塔位可以重蓋新塔，
+    // state.towers 裡同一個 pos 可能有好幾筆歷史紀錄，只有陣列裡最後 push 進去的那筆才是目前真正
+    // 立在棋盤上的塔，所以先依 pos 分組、各組只取最後一筆。
+    const latestTowerByPos = new Map();
+    state.towers.forEach(t => latestTowerByPos.set(t.pos, t));
+    latestTowerByPos.forEach(t => {
       const [x,y] = path[t.pos];
       const el = document.createElement('div');
-      el.className = 'tower';
+      el.className = 'tower' + (t.used ? ' used' : '');
       el.style.left  = `${x-3.8}%`;
       el.style.top   = `${y-3.8}%`;
       el.textContent = towerTypes[t.type].icon;
-      el.title = `${t.owner==='player'?'玩家':'AI'} ${towerTypes[t.type].name}`;
+      el.title = `${t.owner==='player'?'玩家':'AI'} ${towerTypes[t.type].name}${t.used ? '（已失效）' : ''}`;
       board.appendChild(el);
     });
 
@@ -446,9 +456,21 @@
   }
 
   /**
+   * 把一座塔標記成「已失效」：技能只能觸發一次，觸發後這座塔就不會再對任何一方生效，
+   * 但紀錄仍然留在 state.towers 裡（供結算時回報「有使用過的塔別跟數量」），
+   * 塔所在的那個塔位則因為 used=true 不再被視為「佔用中」，之後可以重蓋新塔（見 canBuild()）。
+   * 同時把這個塔種在 usedTowerStats 裡的計數 +1。
+   */
+  function markTowerUsed(t) {
+    t.used = true;
+    state.usedTowerStats[t.type] = (state.usedTowerStats[t.type] || 0) + 1;
+  }
+
+  /**
    * 檢查這趟移動有沒有觸發「敵方」建造的塔，並套用對應效果。
    * mover：正在移動的這一方（'player' 或 'ai'）；opponent 則是另一方（敵方的塔才會生效，自己蓋的塔不會傷到自己）。
-   * 依序檢查移動路徑上每一格，只要找到敵方的塔就套用效果：
+   * 依序檢查移動路徑上每一格，只要找到敵方「還沒失效」的塔（!t.used）就套用效果、並呼叫 markTowerUsed()
+   * 讓這座塔立刻失效——每座塔的技能只能觸發這麼一次：
    *   砲塔（cannon）：把 mover 目前跑最前面的飛機直接送回機坪（位置設回 -1），
    *                    並且 return true 提早結束整個函式——因為飛機已經被打回機坪了，不需要再檢查後面經過的格子。
    *   冰霧塔（freeze）：標記 mover 的 freeze 狀態，下次換 mover 移動時骰子點數會 -1（在 moveSide() 裡處理）
@@ -458,14 +480,18 @@
   function applyTowerEffects(mover, from, to) {
     const opponent = mover==='player'?'ai':'player';
     for (const pos of passedPositions(from,to)) {
-      const t = state.towers.find(t=>t.owner===opponent && t.pos===pos);
-      if (!t) continue; // 這一格沒有敵方的塔，檢查下一格
+      const t = state.towers.find(t=>t.owner===opponent && t.pos===pos && !t.used);
+      if (!t) continue; // 這一格沒有敵方「還有效」的塔，檢查下一格
       if (t.type==='cannon') {
         const idx = chooseMostAdvancedPlane(mover);
-        if (idx>=0) { state[mover].planes[idx]=-1; log(`經過 ${opponent==='player'?'玩家':'AI'} 的砲塔，飛機返回機坪。`, mover==='player'?'p':'a'); return true; }
+        if (idx>=0) {
+          state[mover].planes[idx]=-1; markTowerUsed(t);
+          log(`經過 ${opponent==='player'?'玩家':'AI'} 的砲塔，飛機返回機坪，該塔已失效。`, mover==='player'?'p':'a');
+          return true;
+        }
       }
-      if (t.type==='freeze') { state[mover].freeze=true; log(`經過冰霧塔，${mover==='player'?'玩家':'AI'} 下回合骰子 -1。`,'s'); }
-      if (t.type==='radar')  { state[mover].jam=true;    log(`經過雷達塔，${mover==='player'?'玩家':'AI'} 下一次不能飛躍。`,'s'); }
+      if (t.type==='freeze') { state[mover].freeze=true; markTowerUsed(t); log(`經過冰霧塔，${mover==='player'?'玩家':'AI'} 下回合骰子 -1，該塔已失效。`,'s'); }
+      if (t.type==='radar')  { state[mover].jam=true;    markTowerUsed(t); log(`經過雷達塔，${mover==='player'?'玩家':'AI'} 下一次不能飛躍，該塔已失效。`,'s'); }
     }
     return false;
   }
@@ -513,21 +539,38 @@
     actor.planes[idx] = to;
   }
 
-  // 判斷某一方目前有沒有飛機「停在可建塔格，而且那一格還沒有被蓋過塔」——有的話才能建塔
-  function canBuild(side) { return state[side].planes.some(p => towerSpots.has(p) && !state.towers.some(t=>t.pos===p)); }
+  // 判斷某一方目前有沒有飛機「停在可建塔格，而且那一格目前沒有還在生效中的塔」——有的話才能建塔。
+  // 塔的技能只能觸發一次，觸發後 used 會變成 true，那個塔位就不再算「被佔用」，可以再蓋新塔，
+  // 所以這裡只擋 !t.used（還在生效）的塔，已失效的塔不會擋住重建。
+  function canBuild(side) { return state[side].planes.some(p => towerSpots.has(p) && !state.towers.some(t=>t.pos===p && !t.used)); }
 
   /**
    * 在某一方目前停留的可建塔格上，建造指定類型的塔。
-   * 找到符合條件（在可建塔格、該格還沒被蓋塔）的飛機位置後，就把一筆新的塔資料 push 進 state.towers，
-   * 同時更新已建塔計數（畫面上顯示用的 towerCount，跟送給後端統計用的 currentGame.used_tower_count）。
+   * 找到符合條件（在可建塔格、該格目前沒有還在生效中的塔）的飛機位置後，就把一筆新的塔資料
+   * push 進 state.towers（新塔一律 used:false，尚未觸發）。一局不限制總共能蓋幾座塔，
+   * 只要塔位上原本的塔已經失效，就可以在同一塔位再蓋一座新的。
+   * 同時更新已建塔計數（畫面上顯示用的 towerCount，跟送給後端統計用的 currentGame.used_tower_count，
+   * 這兩個數字都是「累計總共蓋過幾座」，不受塔位數量或失效與否影響）。
    * 回傳 true/false 代表這次建塔是否成功（呼叫端目前沒有特別處理失敗的情況，但保留這個回傳值方便未來擴充）。
    */
   function buildTower(side, type) {
-    const pos = state[side].planes.find(p => towerSpots.has(p) && !state.towers.some(t=>t.pos===p));
+    const pos = state[side].planes.find(p => towerSpots.has(p) && !state.towers.some(t=>t.pos===p && !t.used));
     if (pos===undefined) return false;
-    state.towers.push({owner:side,type,pos}); state.towerCount++; state.currentGame.used_tower_count++;
+    state.towers.push({owner:side,type,pos,used:false}); state.towerCount++; state.currentGame.used_tower_count++;
     log(`在 ${pos} 號塔位建立 ${towerTypes[type].name}。`, side==='player'?'p':'a');
     drawBoard(); updateLabels(); return true;
+  }
+
+  /**
+   * 把 state.usedTowerStats（各塔種技能觸發次數）組成一段給玩家看的文字，例如
+   * 「🏰 砲塔 x2、❄️ 冰霧塔 x1」，觸發次數為 0 的塔種不列出。
+   * 拿不到 towerTypes 對應資料（理論上不會發生）或整局都沒有塔觸發過時，回傳「無」。
+   */
+  function describeUsedTowerStats() {
+    const parts = Object.keys(state.usedTowerStats)
+      .filter(type => state.usedTowerStats[type] > 0 && towerTypes[type])
+      .map(type => `${towerTypes[type].icon} ${towerTypes[type].name} x${state.usedTowerStats[type]}`);
+    return parts.length > 0 ? parts.join('、') : '無';
   }
 
   /**
@@ -556,7 +599,7 @@
     if (playerWin) state.user.win_count++; else state.user.lose_count++;
     rollBtn.disabled=moveBtn.disabled=endBtn.disabled=true;
     resultText.textContent = playerWin ? '🎉 勝利！' : '😔 失敗';
-    resultDetail.innerHTML = `本局回合：<b>${state.round}</b>，建塔數：<b>${state.currentGame.used_tower_count}</b><br>玩家累計：勝 ${state.user.win_count} / 敗 ${state.user.lose_count}`;
+    resultDetail.innerHTML = `本局回合：<b>${state.round}</b>，建塔數：<b>${state.currentGame.used_tower_count}</b><br>已觸發塔種：${describeUsedTowerStats()}<br>玩家累計：勝 ${state.user.win_count} / 敗 ${state.user.lose_count}`;
     resultModal.classList.add('show');
     log(`遊戲結束：${playerWin?'玩家勝利':'AI勝利'}。`,'s');
     syncGameEnd(playerWin);
@@ -585,7 +628,7 @@
         usedTowerCount: state.currentGame.used_tower_count,
         playerMoves: state.currentGame.player_moves,
         aiMoves: state.currentGame.ai_moves,
-        towers: state.towers.map(t => ({ type: t.type, pos: t.pos, owner: t.owner }))
+        towers: state.towers.map(t => ({ type: t.type, pos: t.pos, owner: t.owner, used: t.used }))
       });
       if (data.success && data.winCount != null) {
         currentUser.winCount = data.winCount;
@@ -593,7 +636,7 @@
         state.user.win_count = data.winCount;
         state.user.lose_count = data.loseCount;
         // 用最新數字重新寫一次結算彈窗的內容（此時彈窗通常還開著，玩家會看到數字從「本地暫算值」更新成「資料庫真實值」）
-        resultDetail.innerHTML = `本局回合：<b>${state.round}</b>，建塔數：<b>${state.currentGame.used_tower_count}</b><br>玩家累計：勝 ${state.user.win_count} / 敗 ${state.user.lose_count}`;
+        resultDetail.innerHTML = `本局回合：<b>${state.round}</b>，建塔數：<b>${state.currentGame.used_tower_count}</b><br>已觸發塔種：${describeUsedTowerStats()}<br>玩家累計：勝 ${state.user.win_count} / 敗 ${state.user.lose_count}`;
         log('本局戰績已儲存至資料庫。', 's');
         loadHistory(); // 這局剛存進資料庫，重新載入一次最近戰績列表，讓畫面立刻反映最新這一局
       }
@@ -724,7 +767,7 @@
   towerChoices.addEventListener('click', e => {
     const type = e.target.dataset.tower; if (!type) return;
     buildTower('player', type); towerChoices.style.display='none';
-    setTip('塔已建立','塔只會在敵方飛機經過該格時觸發效果。現在可以結束回合。');
+    setTip('塔已建立','塔只會在敵方飛機經過該格時觸發一次效果，觸發後即失效，之後可以在同一塔位再蓋新塔。現在可以結束回合。');
   });
 
   // 「結束回合」：把建塔選單收起來、三顆按鈕都先關閉，然後呼叫 nextTurn() 把回合交給 AI

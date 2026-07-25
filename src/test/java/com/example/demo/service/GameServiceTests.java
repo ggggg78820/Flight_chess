@@ -58,7 +58,7 @@ class GameServiceTests {
 
         GameEndResponse response = gameService.endGame(request(
                 "WIN", 3, 1, 3, 2,
-                List.of(new TowerBuildDto("cannon", 3, "player"))
+                List.of(new TowerBuildDto("cannon", 3, "player", true))
         ));
 
         assertTrue(response.success());
@@ -92,29 +92,36 @@ class GameServiceTests {
     @Test
     void invalidTowerTypeIsRejected() {
         assertCode("INVALID_TOWER_TYPE", request("WIN", 2, 1, 1, 1,
-                List.of(new TowerBuildDto("laser", 3, "player"))));
+                List.of(new TowerBuildDto("laser", 3, "player", false))));
     }
 
     @Test
     void invalidTowerOwnerIsRejected() {
         assertCode("INVALID_TOWER_OWNER", request("WIN", 2, 1, 1, 1,
-                List.of(new TowerBuildDto("cannon", 3, "guest"))));
+                List.of(new TowerBuildDto("cannon", 3, "guest", false))));
     }
 
     @Test
     void invalidTowerPositionIsRejected() {
         assertCode("INVALID_TOWER_POSITION", request("WIN", 2, 1, 1, 1,
-                List.of(new TowerBuildDto("cannon", 4, "player"))));
+                List.of(new TowerBuildDto("cannon", 4, "player", false))));
     }
 
     @Test
-    void duplicateTowerPositionIsRejected() {
+    void sameTowerPositionCanBeRebuiltAfterPreviousOneIsUsed() {
+        // 規則：塔的技能只能觸發一次，觸發後就失效，同一塔位可以再蓋新塔，
+        // 所以同一局的 towers 清單裡，同一個 pos 出現多筆紀錄是正常情況，不該被拒絕。
         Tower cannon = new Tower("砲塔", "cannon", "效果", "🏰");
         when(towerRepository.findByType("cannon")).thenReturn(Optional.of(cannon));
-        assertCode("DUPLICATE_TOWER_POSITION", request("WIN", 2, 2, 1, 1, List.of(
-                new TowerBuildDto("cannon", 3, "player"),
-                new TowerBuildDto("cannon", 3, "ai")
+
+        GameEndResponse response = gameService.endGame(request("WIN", 2, 2, 1, 1, List.of(
+                new TowerBuildDto("cannon", 3, "player", true),
+                new TowerBuildDto("cannon", 3, "player", false)
         )));
+
+        assertTrue(response.success());
+        assertEquals(2, response.towersRecorded());
+        verify(gameTowerRepository, times(2)).save(any(GameTower.class));
     }
 
     @Test
@@ -130,7 +137,7 @@ class GameServiceTests {
 
         assertThrows(RuntimeException.class, () -> gameService.endGame(request(
                 "WIN", 2, 1, 1, 1,
-                List.of(new TowerBuildDto("cannon", 3, "player"))
+                List.of(new TowerBuildDto("cannon", 3, "player", false))
         )));
         verify(userRepository, never()).save(player);
 

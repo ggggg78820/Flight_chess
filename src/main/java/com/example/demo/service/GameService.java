@@ -18,7 +18,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -34,7 +33,6 @@ public class GameService {
     private static final Set<String> VALID_TOWER_TYPES = Set.of("cannon", "freeze", "radar");
     private static final Set<String> VALID_OWNERS = Set.of("player", "ai");
     private static final Set<Integer> VALID_TOWER_POSITIONS = Set.of(3, 8, 15, 21, 25);
-    private static final int MAX_TOWERS = VALID_TOWER_POSITIONS.size();
 
     private final GameRepository gameRepository;
     private final UserRepository userRepository;
@@ -94,7 +92,7 @@ public class GameService {
     private int recordTowers(Game game, List<ValidatedTower> towers) {
         for (ValidatedTower validated : towers) {
             TowerBuildDto build = validated.build();
-            GameTower gameTower = new GameTower(game, validated.tower(), build.pos(), build.owner());
+            GameTower gameTower = new GameTower(game, validated.tower(), build.pos(), build.owner(), build.used());
             gameTowerRepository.save(gameTower);
         }
         return towers.size();
@@ -119,15 +117,14 @@ public class GameService {
         requireNonNegative(request.playerMoves(), "playerMoves", "INVALID_PLAYER_MOVES");
         requireNonNegative(request.aiMoves(), "aiMoves", "INVALID_AI_MOVES");
 
+        // 一局不限制最多能建幾座塔：因為每座塔的技能只能觸發一次，觸發後就失效，
+        // 同一個塔位在遊戲過程中可以重複蓋新塔，所以 towers 陣列裡本來就可能出現同一個 pos
+        // 對應多筆紀錄（有的 used=true 已失效、有的 used=false 還在生效中），不再視為異常。
         List<TowerBuildDto> builds = request.towers() == null ? List.of() : request.towers();
-        if (builds.size() > MAX_TOWERS) {
-            throw badRequest("TOO_MANY_TOWERS", "一局最多只能建立 5 座塔");
-        }
         if (request.usedTowerCount() != builds.size()) {
             throw badRequest("TOWER_COUNT_MISMATCH", "usedTowerCount 必須等於 towers 的實際數量");
         }
 
-        Set<Integer> occupiedPositions = new HashSet<>();
         List<ValidatedTower> validatedTowers = new ArrayList<>();
         for (TowerBuildDto build : builds) {
             if (build == null) {
@@ -141,9 +138,6 @@ public class GameService {
             }
             if (!VALID_TOWER_POSITIONS.contains(build.pos())) {
                 throw badRequest("INVALID_TOWER_POSITION", "塔的位置只能是 3、8、15、21 或 25");
-            }
-            if (!occupiedPositions.add(build.pos())) {
-                throw badRequest("DUPLICATE_TOWER_POSITION", "同一位置不能重複建塔");
             }
             Tower tower = towerRepository.findByType(build.type())
                     .orElseThrow(() -> badRequest("TOWER_TYPE_NOT_FOUND", "資料庫中找不到塔型：" + build.type()));

@@ -89,6 +89,16 @@
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- H2：純 Java 實作的記憶體資料庫，只在測試時使用（scope=test）。
+		     讓 @SpringBootTest 這類需要啟動完整 Spring 容器（含真正 JPA/資料庫連線）的測試，
+		     連的是這個測試一啟動就建立、測試結束就消失的暫存資料庫，不需要連正式 MySQL、
+		     也不需要任何密碼，見 src/test/resources/application.properties 的設定。 -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<!-- build：定義建置流程用到的外掛（plugin） -->
