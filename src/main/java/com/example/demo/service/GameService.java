@@ -59,10 +59,13 @@ public class GameService {
      *   3. 找到對應的使用者，把累計勝場或敗場 +1，並把最新的累計數字放進回應
      * 所有請求內容會先驗證完畢、解析出實際塔種後才開始寫入。整個方法位於同一交易中，
      * 任一步驟失敗都會完整回滾，不會留下部分遊戲或塔紀錄。
+     *
+     * userId 由 GameController 從登入 session 讀出來後傳進來，不是從 request 本身取得——
+     * 這局是誰玩的，只能由後端已經驗證過的登入狀態決定，見 GameEndRequest 的說明。
      */
     @Transactional
-    public GameEndResponse endGame(GameEndRequest request) {
-        ValidatedGameEnd validated = validateGameEnd(request);
+    public GameEndResponse endGame(Long userId, GameEndRequest request) {
+        ValidatedGameEnd validated = validateGameEnd(userId, request);
 
         Game game = new Game(validated.user().getId(), validated.result(), request.turnCount(),
                 request.usedTowerCount(), request.playerMoves(), request.aiMoves());
@@ -98,14 +101,11 @@ public class GameService {
         return towers.size();
     }
 
-    private ValidatedGameEnd validateGameEnd(GameEndRequest request) {
+    private ValidatedGameEnd validateGameEnd(Long userId, GameEndRequest request) {
         if (request == null) {
             throw badRequest("INVALID_GAME_REQUEST", "缺少遊戲結算資料");
         }
-        if (request.userId() == null) {
-            throw badRequest("INVALID_USER_ID", "userId 不可為空");
-        }
-        User user = userRepository.findById(request.userId())
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PLAYER_NOT_FOUND", "找不到指定玩家"));
 
         String result = request.result() == null ? "" : request.result().trim().toUpperCase(Locale.ROOT);

@@ -56,7 +56,7 @@ class GameServiceTests {
         Tower cannon = new Tower("砲塔", "cannon", "效果", "🏰");
         when(towerRepository.findByType("cannon")).thenReturn(Optional.of(cannon));
 
-        GameEndResponse response = gameService.endGame(request(
+        GameEndResponse response = gameService.endGame(1L, request(
                 "WIN", 3, 1, 3, 2,
                 List.of(new TowerBuildDto("cannon", 3, "player", true))
         ));
@@ -114,7 +114,7 @@ class GameServiceTests {
         Tower cannon = new Tower("砲塔", "cannon", "效果", "🏰");
         when(towerRepository.findByType("cannon")).thenReturn(Optional.of(cannon));
 
-        GameEndResponse response = gameService.endGame(request("WIN", 2, 2, 1, 1, List.of(
+        GameEndResponse response = gameService.endGame(1L, request("WIN", 2, 2, 1, 1, List.of(
                 new TowerBuildDto("cannon", 3, "player", true),
                 new TowerBuildDto("cannon", 3, "player", false)
         )));
@@ -135,13 +135,13 @@ class GameServiceTests {
         when(towerRepository.findByType("cannon")).thenReturn(Optional.of(cannon));
         when(gameTowerRepository.save(any(GameTower.class))).thenThrow(new RuntimeException("database failure"));
 
-        assertThrows(RuntimeException.class, () -> gameService.endGame(request(
+        assertThrows(RuntimeException.class, () -> gameService.endGame(1L, request(
                 "WIN", 2, 1, 1, 1,
                 List.of(new TowerBuildDto("cannon", 3, "player", false))
         )));
         verify(userRepository, never()).save(player);
 
-        Method method = GameService.class.getMethod("endGame", GameEndRequest.class);
+        Method method = GameService.class.getMethod("endGame", Long.class, GameEndRequest.class);
         assertNotNull(method.getAnnotation(Transactional.class), "結算方法必須由 Spring 交易管理");
     }
 
@@ -151,11 +151,11 @@ class GameServiceTests {
 
     private GameEndRequest request(String result, Integer turnCount, Integer towerCount,
                                    Integer playerMoves, Integer aiMoves, List<TowerBuildDto> towers) {
-        return new GameEndRequest(1L, result, turnCount, towerCount, playerMoves, aiMoves, towers);
+        return new GameEndRequest(result, turnCount, towerCount, playerMoves, aiMoves, towers);
     }
 
     private void assertCode(String code, GameEndRequest request) {
-        ApiException exception = assertThrows(ApiException.class, () -> gameService.endGame(request));
+        ApiException exception = assertThrows(ApiException.class, () -> gameService.endGame(1L, request));
         assertEquals(code, exception.getCode());
         verifyNoInteractions(gameRepository, gameTowerRepository);
     }

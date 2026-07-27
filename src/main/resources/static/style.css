@@ -166,8 +166,8 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 .start-box.compact button { width: 100%; }
 .chip-wrapper { display: flex; justify-content: flex-end; align-items: center; }
 
-/* 身分輸入區（輸入名字 + 確認玩家按鈕），跟 app.js 的 identifyUser() 對應 */
-.player-id-row { display: flex; gap: 8px; margin-bottom: 8px; }
+/* 登入/註冊輸入區（帳號、密碼輸入框 + 註冊/登入/登出按鈕），跟 app.js 的 registerUser()/loginUser()/logoutUser() 對應 */
+.player-id-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .player-id-row input {
   flex: 1; min-width: 0; padding: 10px; border-radius: 10px;
   border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 13px;

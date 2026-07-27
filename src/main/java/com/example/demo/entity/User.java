@@ -25,11 +25,12 @@ public class User {
     @Column(nullable = false, unique = true)
     private String username;
 
-    // 舊資料庫相容欄位。系統已不提供密碼註冊或登入；保留映射是為了讓既有
-    // password NOT NULL 欄位在 ddl-auto=update 環境中仍可正常新增玩家。
-    // 此欄位沒有 getter/setter，也不會出現在任何 API。
+    // 密碼的 BCrypt 雜湊字串（不是明碼！）。UserService.register() 建立帳號時，
+    // 一定是先呼叫 PasswordEncoder.encode(明碼密碼) 產生這個值才存進來，資料庫裡看到的
+    // 永遠是一長串雜湊字串，不會是玩家實際輸入的密碼。刻意沒有把這個欄位放進任何
+    // UserProfileResponse 之類的回應 DTO，避免不小心把雜湊字串外洩到前端。
     @Column(nullable = false)
-    private String password = "";
+    private String password;
 
     // 累計勝場數，預設 0。每次 /api/games/end 判定玩家獲勝時，GameService 會把這個數字 +1。
     @Column(name = "win_count")
@@ -76,6 +77,14 @@ public class User {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public Integer getWinCount() {

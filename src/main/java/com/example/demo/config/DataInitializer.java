@@ -7,6 +7,7 @@ import com.example.demo.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 
@@ -26,12 +27,16 @@ public class DataInitializer {
      * 不需要自己 new，Spring 容器會找到對應的 Bean 傳進來。
      */
     @Bean
-    public CommandLineRunner initData(UserRepository userRepository, TowerRepository towerRepository) {
+    public CommandLineRunner initData(UserRepository userRepository, TowerRepository towerRepository,
+                                       PasswordEncoder passwordEncoder) {
         return args -> {
-            // 如果 users 資料表目前是空的，才建立一個預設帳號（避免每次重啟都重複新增）
-            // 建立預設玩家，開啟頁面後即可用 player1 延續戰績。
+            // 如果 users 資料表目前是空的，才建立一個預設帳號（避免每次重啟都重複新增）。
+            // 密碼一樣要用 BCrypt 雜湊過才能存進 password 這個 NOT NULL 欄位（跟正式註冊走同一套規則），
+            // 這組帳密是給老師/同學驗收時直接登入用的固定 Demo 帳號，README 會寫明這組帳密。
             if (userRepository.count() == 0) {
-                userRepository.save(new User("player1"));
+                User demoUser = new User("player1");
+                demoUser.setPassword(passwordEncoder.encode("player123"));
+                userRepository.save(demoUser);
             }
 
             // 塞入（或修正）三種塔的基本資料，type 欄位是跟前端遊戲邏輯裡比對用的字串

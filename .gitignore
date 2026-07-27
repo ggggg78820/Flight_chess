@@ -4,6 +4,10 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# 存放本機密碼（例如 DB_PASSWORD）的檔案，VS Code 的 launch.json 設定會自動讀取這個檔案
+# 當作執行時的環境變數來源，但這個檔案本身絕對不能進版本控制，每個人要自己在本機建立一份。
+.env
+
 ### STS ###
 .apt_generated
 .classpath

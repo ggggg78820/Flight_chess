@@ -21,7 +21,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * SELECT * FROM users WHERE username = ?），完全不用自己寫 SQL 或實作內容。
      *
      * 回傳型別是 Optional<User>，代表「可能查不到人」，
-     * 呼叫端（例如 UserController）要用 .isPresent() / .map() / .orElse() 等方式安全地處理查無資料的情況，
+     * 呼叫端（例如 UserService）要用 .isPresent() / .map() / .orElse() 等方式安全地處理查無資料的情況，
      * 避免直接回傳 null 造成 NullPointerException。
      */
     Optional<User> findByUsername(String username);

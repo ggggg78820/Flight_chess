@@ -125,15 +125,21 @@
             <div class="start-box compact">
               <h3>準備起飛？</h3>
               <!--
-                身分輸入區：只填名字、不需要密碼，純粹讓後端知道「這次是誰在玩」，
-                好把這一局的勝敗紀錄掛在正確的名字底下。輸入框預設值 player1，
-                不改名字直接按「確認玩家」時，會使用預設名稱 player1 載入或建立戰績。
+                登入/註冊區：真正的帳號密碼驗證（取代舊版「只填名字就當作是你」的做法）。
+                預設值 player1 / player123 是 DataInitializer 建立好的固定 Demo 帳號，方便展示時直接登入。
+                未登入也能按「▶ 開始 / 重新開始」離線試玩，只是遊戲結束後不會把戰績寫進資料庫
+                （app.js 的 syncGameEnd()/loadHistory() 在沒有登入時會自動略過，不會呼叫後端）。
               -->
               <div class="player-id-row">
-                <input type="text" id="usernameInput" placeholder="輸入你的名字" value="player1" maxlength="20" />
-                <button id="loginBtn" class="secondary">確認玩家</button>
+                <input type="text" id="usernameInput" placeholder="帳號" value="player1" maxlength="20" autocomplete="username" />
+                <input type="password" id="passwordInput" placeholder="密碼" maxlength="72" autocomplete="current-password" />
               </div>
-              <p class="small">玩家名稱僅用於識別戰績；輸入相同名稱會共用同一份紀錄。</p>
+              <div class="player-id-row">
+                <button id="registerBtn" class="secondary">註冊</button>
+                <button id="loginBtn" class="secondary">登入</button>
+                <button id="logoutBtn" class="secondary" style="display:none">登出</button>
+              </div>
+              <p class="small">登入後才會保存正式戰績；不登入也能離線試玩，只是不會寫入資料庫。</p>
               <button id="startBtn">▶ 開始 / 重新開始</button>
             </div>
             <!--
@@ -145,7 +151,7 @@
               <div class="stat"><small>骰子點數</small><b id="diceLabel">—</b></div>
               <div class="stat"><small>回合數</small><b id="roundLabel">0</b></div>
               <div class="stat"><small>已建塔數</small><b id="towerCountLabel">0</b></div>
-              <p class="player-status" id="loginStatus">確認玩家名稱後即可記錄戰績</p>
+              <p class="player-status" id="loginStatus">尚未登入，遊戲可離線試玩但不會保存戰績</p>
             </div>
           </div>
 

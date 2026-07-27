@@ -68,6 +68,16 @@
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
 
+		<!-- Spring Security 的「密碼雜湊」工具模組（只有 BCryptPasswordEncoder 這類 class，不含完整的
+		     spring-boot-starter-security）。刻意只引入這個輕量模組，是因為完整的 security starter
+		     會自動幫「所有」API 加上登入驗證、預設登入頁、CSRF 防護等一整套機制，對這個專題來說
+		     設定成本遠大於效益；這裡只需要「密碼不能明碼存資料庫」這個單一能力，所以只拿雜湊工具，
+		     登入狀態改用最單純的 HttpSession 手動管理（見 AuthController／SessionUtil）。 -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-crypto</artifactId>
+		</dependency>
+
 		<!-- MySQL JDBC 驅動：讓 Java 程式知道怎麼跟 MySQL 資料庫溝通。scope=runtime 表示只有執行時才需要，編譯期不需要 -->
 		<dependency>
 			<groupId>com.mysql</groupId>

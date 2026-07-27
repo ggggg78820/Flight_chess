@@ -2,6 +2,9 @@ package com.example.demo;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * 整個 Spring Boot 應用程式的進入點（entry point）。
@@ -26,6 +29,17 @@ public class DemoApplication {
 	 */
 	public static void main(String[] args) {
 		SpringApplication.run(DemoApplication.class, args);
+	}
+
+	/**
+	 * 密碼雜湊工具，整個應用程式共用同一個 Bean（UserService 註冊/登入驗證密碼、
+	 * DataInitializer 建立預設帳號時都會注入使用）。BCrypt 是業界標準的密碼雜湊演算法，
+	 * 特性是「同一組密碼每次雜湊出來的字串都不一樣（內含隨機 salt），但 matches() 依然能正確驗證」，
+	 * 資料庫裡永遠只存雜湊後的字串，不會存明碼密碼。
+	 */
+	@Bean
+	public PasswordEncoder passwordEncoder() {
+		return new BCryptPasswordEncoder();
 	}
 
 }
