@@ -46,6 +46,16 @@ Repository   Spring Data JPA，跟資料庫溝通
 | `games` | 每一局的結算紀錄（結果、回合數、雙方步數、建塔數、所屬玩家） |
 | `game_towers` | 某一局裡，在哪個塔位建了哪種塔、哪一方建的、技能有沒有觸發過（`used`），關聯 `games` 與 `towers` |
 
+資料表關聯（文字版 ER 說明）：
+
+```
+users (1) ──< games (1) ──< game_towers >── (1) towers
+```
+
+- 一個 `users` 可以對應多筆 `games`（一個玩家打很多局）。
+- 一筆 `games` 可以對應多筆 `game_towers`（一局裡建了好幾座塔）。
+- 一種 `towers` 也可以出現在很多筆 `game_towers` 裡（同一種塔在很多局裡都被用過）。
+
 ## API 清單
 
 | 方法 | 路徑 | 需要登入 | 說明 |
@@ -113,7 +123,7 @@ export DB_PASSWORD="你的MySQL密碼"
 ./mvnw test
 ```
 
-測試不需要設定 `DB_PASSWORD`、不需要安裝或啟動 MySQL——`src/test/resources/application.properties` 會蓋過主設定檔，改連一個測試一啟動就建立、測試結束就消失的 H2 記憶體資料庫（`com.h2database:h2`，`scope=test`）。目前共 21 個測試，涵蓋帳號註冊/登入、遊戲結算驗證規則、API 錯誤格式，以及應用程式能否正常啟動（`DemoApplicationTests`）。
+測試不需要設定 `DB_PASSWORD`、不需要安裝或啟動 MySQL——`src/test/resources/application.properties` 會蓋過主設定檔，改連一個測試一啟動就建立、測試結束就消失的 H2 記憶體資料庫（`com.h2database:h2`，`scope=test`）。目前共 24 個測試，涵蓋帳號註冊/登入、遊戲結算驗證規則（含異常大數值的防護）、未登入呼叫戰績 API 會被拒絕、API 錯誤格式，以及應用程式能否正常啟動（`DemoApplicationTests`）。
 
 ## 預設 Demo 帳號
 
@@ -137,6 +147,33 @@ export DB_PASSWORD="你的MySQL密碼"
 
 正常對局要 4 架飛機都抵達終點，回合數可能較多、擲骰結果也不受控制。如果現場時間有限，可以在步驟 3~6 之間視情況提早結束展示，改用「重新整理頁面看到歷史紀錄還在」「登出/登入」這些已經能確定會發生的行為當作展示重點，不用硬等一局真正打完。
 
+## 現場驗證資料庫
+
+畫面上看得到「戰績已儲存」不代表老師會相信資料真的進了 MySQL，建議展示時額外開一個 MySQL 用戶端（例如 `mysql -u root -p flight_chess`、MySQL Workbench 或 DBeaver 都可以），在遊戲進行的前後各查一次，直接讓老師看到筆數變化：
+
+```sql
+-- 展示剛剛註冊/登入的帳號在 users 裡（累計勝敗場次也在這張表）
+SELECT id, username, win_count, lose_count, created_at, last_login
+FROM users
+ORDER BY id DESC
+LIMIT 5;
+
+-- 展示剛剛結束的那一局有寫進 games
+SELECT id, user_id, result, turn_count, used_tower_count, player_moves, ai_moves, created_at
+FROM games
+ORDER BY id DESC
+LIMIT 5;
+
+-- 展示這一局實際建過的每一座塔，包含跟 towers 表的關聯、以及技能有沒有觸發過
+SELECT gt.id, gt.game_id, t.name AS tower_name, gt.board_position, gt.owner, gt.used
+FROM game_towers gt
+JOIN towers t ON t.id = gt.tower_id
+ORDER BY gt.id DESC
+LIMIT 10;
+```
+
+建議流程：先查一次目前 `users`/`games` 的筆數 → 現場玩完一局 → 重新整理 MySQL 查詢結果，直接讓老師看到新增的那幾筆，比空口說「有存進資料庫」更有說服力。
+
 ## GitHub Pages 的限制
 
 `.github/workflows/deploy-pages.yml` 只會把 `src/main/resources/static` 這個純前端資料夾部署到 GitHub Pages，**沒有後端、沒有資料庫**。透過 GitHub Pages 開啟的版本，遊戲畫面可以正常操作，但登入、註冊、戰績儲存都無法使用（背後呼叫的 `/api/...` 端點不存在），只能拿來看畫面/UI，不能拿來展示完整功能。要展示完整功能，需要照上面「啟動應用程式」的步驟在本機（或有 MySQL 的環境）跑起來。
@@ -147,3 +184,4 @@ export DB_PASSWORD="你的MySQL密碼"
 - 棋盤只有一張固定地圖，塔種固定 3 種、塔位固定 5 格（`3`／`8`／`15`／`21`／`25`）。
 - 遊戲進行中的狀態只存在瀏覽器記憶體裡，只有「一局結束」時才會整批寫入資料庫；重新整理頁面會讓進行中的對局重置（不影響已經結束、已寫入資料庫的歷史紀錄）。
 - 前端遊戲規則（移動、塔的效果）目前沒有自動化測試，全靠手動測試/展示驗證；後端 API 與資料驗證邏輯則有完整的自動化測試（`./mvnw test`）。
+- 後端只保存「一局結束時的最終摘要結果」（勝負、回合數、雙方步數、建塔紀錄），不會逐步驗證整場對局的每一步是否都照著規則走；後端驗證的重點是「數值範圍合不合理」（例如結果只能是 WIN/LOSE、步數不可為負數或大到異常），這是單機課堂 Demo 的範圍，不具備正式競技系統該有的伺服器權威判定或防作弊能力。

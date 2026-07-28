@@ -90,6 +90,16 @@ class GameServiceTests {
     }
 
     @Test
+    void unreasonablyLargeCountsAreRejected() {
+        // 防止異常/惡意請求：這些數字遠超過任何一場正常對局可能出現的範圍，應該被擋下來，
+        // 而不是被當成一場「打了一千萬回合」的合法遊戲寫進資料庫。
+        assertCode("INVALID_TURN_COUNT", request("WIN", 10_000_001, 0, 1, 1, List.of()));
+        assertCode("INVALID_TOWER_COUNT", request("WIN", 2, 10_000_001, 1, 1, List.of()));
+        assertCode("INVALID_PLAYER_MOVES", request("WIN", 2, 0, 10_000_001, 1, List.of()));
+        assertCode("INVALID_AI_MOVES", request("WIN", 2, 0, 1, 10_000_001, List.of()));
+    }
+
+    @Test
     void invalidTowerTypeIsRejected() {
         assertCode("INVALID_TOWER_TYPE", request("WIN", 2, 1, 1, 1,
                 List.of(new TowerBuildDto("laser", 3, "player", false))));

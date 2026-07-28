@@ -111,13 +111,23 @@
   }
 
   /**
+   * 依累計勝敗場次算出勝率文字，例如「50%」；一場都還沒打過時回傳「—」，避免除以 0。
+   * 純粹是前端算好看用的顯示格式，勝敗場次本身還是以後端回傳的數字為準，這裡不新增任何 API。
+   */
+  function formatWinRate(winCount, loseCount) {
+    const total = (winCount || 0) + (loseCount || 0);
+    if (total === 0) return '—';
+    return `${Math.round((winCount / total) * 100)}%`;
+  }
+
+  /**
    * 登入/註冊成功後共用的畫面更新：把後端回傳的個人資料存進 currentUser、
    * 切換按鈕顯示（隱藏註冊/登入，顯示登出）、鎖住帳密輸入框、重新載入這個帳號的歷史紀錄。
    * data 是後端 UserProfileResponse 的內容（id/username/winCount/loseCount/...）。
    */
   function applyLoginState(data) {
     currentUser = { id: data.id, username: data.username, winCount: data.winCount, loseCount: data.loseCount };
-    loginStatus.textContent = `目前登入：${currentUser.username}（累計 勝 ${currentUser.winCount} / 敗 ${currentUser.loseCount}）`;
+    loginStatus.textContent = `目前登入：${currentUser.username}（累計 勝 ${currentUser.winCount} / 敗 ${currentUser.loseCount}，勝率 ${formatWinRate(currentUser.winCount, currentUser.loseCount)}）`;
     registerBtn.style.display = 'none'; loginBtn.style.display = 'none'; logoutBtn.style.display = '';
     usernameInput.disabled = true; passwordInput.disabled = true;
     loadHistory(); // 換了身分（或第一次載入頁面還原登入狀態）之後，最近戰績列表也要跟著換成這個人的紀錄
@@ -649,7 +659,7 @@
     if (playerWin) state.user.win_count++; else state.user.lose_count++;
     rollBtn.disabled=moveBtn.disabled=endBtn.disabled=true;
     resultText.textContent = playerWin ? '🎉 勝利！' : '😔 失敗';
-    resultDetail.innerHTML = `本局回合：<b>${state.round}</b>，建塔數：<b>${state.currentGame.used_tower_count}</b><br>已觸發塔種：${describeUsedTowerStats()}<br>玩家累計：勝 ${state.user.win_count} / 敗 ${state.user.lose_count}`;
+    resultDetail.innerHTML = `本局回合：<b>${state.round}</b>，建塔數：<b>${state.currentGame.used_tower_count}</b><br>已觸發塔種：${describeUsedTowerStats()}<br>玩家累計：勝 ${state.user.win_count} / 敗 ${state.user.lose_count}，勝率 ${formatWinRate(state.user.win_count, state.user.lose_count)}`;
     resultModal.classList.add('show');
     log(`遊戲結束：${playerWin?'玩家勝利':'AI勝利'}。`,'s');
     syncGameEnd(playerWin);
@@ -688,7 +698,7 @@
         state.user.win_count = data.winCount;
         state.user.lose_count = data.loseCount;
         // 用最新數字重新寫一次結算彈窗的內容（此時彈窗通常還開著，玩家會看到數字從「本地暫算值」更新成「資料庫真實值」）
-        resultDetail.innerHTML = `本局回合：<b>${state.round}</b>，建塔數：<b>${state.currentGame.used_tower_count}</b><br>已觸發塔種：${describeUsedTowerStats()}<br>玩家累計：勝 ${state.user.win_count} / 敗 ${state.user.lose_count}`;
+        resultDetail.innerHTML = `本局回合：<b>${state.round}</b>，建塔數：<b>${state.currentGame.used_tower_count}</b><br>已觸發塔種：${describeUsedTowerStats()}<br>玩家累計：勝 ${state.user.win_count} / 敗 ${state.user.lose_count}，勝率 ${formatWinRate(state.user.win_count, state.user.lose_count)}`;
         log('本局戰績已儲存至資料庫。', 's');
         loadHistory(); // 這局剛存進資料庫，重新載入一次最近戰績列表，讓畫面立刻反映最新這一局
       }

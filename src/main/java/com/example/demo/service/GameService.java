@@ -33,6 +33,11 @@ public class GameService {
     private static final Set<String> VALID_TOWER_TYPES = Set.of("cannon", "freeze", "radar");
     private static final Set<String> VALID_OWNERS = Set.of("player", "ai");
     private static final Set<Integer> VALID_TOWER_POSITIONS = Set.of(3, 8, 15, 21, 25);
+    // 遠大於任何一場正常對局可能出現的數字（正常對局頂多幾十~幾百回合），只用來擋明顯異常/
+    // 惡意的請求（例如手動偽造一個 turnCount 或 towers 陣列長度大到誇張的請求）。
+    // usedTowerCount 一定要跟 towers.size() 相等（見下方 TOWER_COUNT_MISMATCH 檢查），
+    // 所以幫 usedTowerCount 設這個上限，towers 陣列長度也一併被限制住了，不用另外多寫一個檢查。
+    private static final int MAX_REASONABLE_COUNT = 10_000;
 
     private final GameRepository gameRepository;
     private final UserRepository userRepository;
@@ -147,14 +152,14 @@ public class GameService {
     }
 
     private void requirePositive(Integer value, String field, String code) {
-        if (value == null || value <= 0) {
-            throw badRequest(code, field + " 必須大於 0");
+        if (value == null || value <= 0 || value > MAX_REASONABLE_COUNT) {
+            throw badRequest(code, field + " 必須介於 1～" + MAX_REASONABLE_COUNT + " 之間");
         }
     }
 
     private void requireNonNegative(Integer value, String field, String code) {
-        if (value == null || value < 0) {
-            throw badRequest(code, field + " 必須大於或等於 0");
+        if (value == null || value < 0 || value > MAX_REASONABLE_COUNT) {
+            throw badRequest(code, field + " 必須介於 0～" + MAX_REASONABLE_COUNT + " 之間");
         }
     }
 
