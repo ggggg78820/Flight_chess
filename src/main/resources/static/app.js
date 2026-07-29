@@ -37,13 +37,7 @@
   const resultText       = document.getElementById('resultText');      // 彈窗裡的「勝利/失敗」大字
   const resultDetail     = document.getElementById('resultDetail');    // 彈窗裡的詳細數據
   const closeModal       = document.getElementById('closeModal');      // 彈窗的關閉按鈕
-  const usernameInput    = document.getElementById('usernameInput');   // 帳號輸入框
-  const passwordInput    = document.getElementById('passwordInput');   // 密碼輸入框
-  const registerBtn      = document.getElementById('registerBtn');     // 「註冊」按鈕
-  const loginBtn         = document.getElementById('loginBtn');        // 「登入」按鈕
-  const logoutBtn        = document.getElementById('logoutBtn');       // 「登出」按鈕（登入後才顯示）
-  const loginStatus      = document.getElementById('loginStatus');     // 登入狀態小字提示
-  const historyBody      = document.getElementById('historyBody');     // 最近戰績列表容器
+  const loginStatus      = document.getElementById('loginStatus');     // 登入狀態小字提示（登入/登出改由 auth.js 的 window.Auth 驅動，見第 2 部分）
 
   /*
     棋盤路徑座標表：一個長度 29 的陣列（index 0 ~ 28），每個元素是 [x, y]，
@@ -85,7 +79,8 @@
   let state;
 
   // currentUser：目前登入者的資訊（{id, username, winCount, loseCount}）。
-  // 由 checkSession()（頁面載入時還原登入狀態）、registerUser()、loginUser() 設定；
+  // 登入/註冊/登出的表單搬去了 index.html，這裡改由跨頁共用的 window.Auth（見 auth.js）
+  // 透過 onChange() 訂閱通知來設定，見第 5 部分結尾的 window.Auth.onChange(...)。
   // 未登入、登出、或連不上後端時維持 null——這時遊戲仍可離線試玩，只是不會呼叫後端存戰績。
   let currentUser = null;
 
@@ -121,88 +116,17 @@
   }
 
   /**
-   * 登入/註冊成功後共用的畫面更新：把後端回傳的個人資料存進 currentUser、
-   * 切換按鈕顯示（隱藏註冊/登入，顯示登出）、鎖住帳密輸入框、重新載入這個帳號的歷史紀錄。
-   * data 是後端 UserProfileResponse 的內容（id/username/winCount/loseCount/...）。
+   * 登入狀態改變時（登入/註冊/登出/頁面載入時還原 session）要做的畫面更新，
+   * 由第 5 部分結尾訂閱的 window.Auth.onChange(...) 呼叫，取代舊版各自獨立的
+   * applyLoginState()/registerUser()/loginUser()/logoutUser()/checkSession()
+   * ——因為登入/註冊表單已經搬去 index.html，這一頁只需要「知道現在是誰、要不要存戰績」。
+   * user 是 window.Auth 提供的資料（null 或 {id, username, winCount, loseCount}）。
    */
-  function applyLoginState(data) {
-    currentUser = { id: data.id, username: data.username, winCount: data.winCount, loseCount: data.loseCount };
-    loginStatus.textContent = `目前登入：${currentUser.username}（累計 勝 ${currentUser.winCount} / 敗 ${currentUser.loseCount}，勝率 ${formatWinRate(currentUser.winCount, currentUser.loseCount)}）`;
-    registerBtn.style.display = 'none'; loginBtn.style.display = 'none'; logoutBtn.style.display = '';
-    usernameInput.disabled = true; passwordInput.disabled = true;
-    loadHistory(); // 換了身分（或第一次載入頁面還原登入狀態）之後，最近戰績列表也要跟著換成這個人的紀錄
-  }
-
-  /**
-   * 註冊新帳號：把 usernameInput/passwordInput 的內容送到後端 POST /api/auth/register。
-   * 密碼會在後端用 BCrypt 雜湊過才存進資料庫，這裡的明碼只存在這次 HTTP 請求的傳輸過程中。
-   * 註冊成功後端會直接建立登入 session（見 AuthController.register()），不用再多按一次「登入」。
-   */
-  async function registerUser(username, password) {
-    username = (username || '').trim();
-    if (!username || !password) { loginStatus.textContent = '請輸入帳號與密碼。'; return; }
-    try {
-      const data = await apiPost('/api/auth/register', { username, password });
-      applyLoginState(data);
-      log(`已註冊並登入新帳號 ${data.username}。`, 's');
-    } catch (e) {
-      loginStatus.textContent = e.message || '註冊失敗。';
-      log(`註冊失敗：${e.message || '無法連線後端資料庫'}`, 's');
-    }
-  }
-
-  /**
-   * 登入既有帳號：呼叫 POST /api/auth/login 驗證帳密。成功後後端會建立登入 session，
-   * 瀏覽器自動收下 session cookie，之後呼叫 /api/games/end、/api/games/history 都會
-   * 自動帶上這個 cookie——這是取代舊版「只填名字、後端就直接相信身分」的關鍵：
-   * 現在後端結算戰績時，認的是「這個 session 對應的帳號」，不是前端宣稱的任何名字。
-   */
-  async function loginUser(username, password) {
-    username = (username || '').trim();
-    if (!username || !password) { loginStatus.textContent = '請輸入帳號與密碼。'; return; }
-    try {
-      const data = await apiPost('/api/auth/login', { username, password });
-      applyLoginState(data);
-      log(`已登入 ${data.username}（累計 勝 ${data.winCount} / 敗 ${data.loseCount}）。`, 's');
-    } catch (e) {
-      loginStatus.textContent = e.message || '登入失敗，請確認帳號密碼是否正確。';
-      log(`登入失敗：${e.message || '無法連線後端資料庫'}`, 's');
-    }
-  }
-
-  /**
-   * 登出：呼叫 POST /api/auth/logout 讓後端清掉 session，並把前端記著的 currentUser 清空、
-   * 畫面切回「未登入」狀態。就算連不上後端，前端還是會把自己這邊的登入狀態清掉。
-   */
-  async function logoutUser() {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch (e) {
-      // 連不上後端也沒關係，反正要清掉的是前端自己記住的登入狀態
-    }
-    currentUser = null;
-    loginStatus.textContent = '已登出，遊戲可離線試玩但不會保存戰績';
-    registerBtn.style.display = ''; loginBtn.style.display = ''; logoutBtn.style.display = 'none';
-    usernameInput.disabled = false; passwordInput.disabled = false; passwordInput.value = '';
-    historyBody.innerHTML = '<p class="history-empty">登出後不會顯示歷史紀錄，登入後才能查看。</p>';
-    log('已登出。', 's');
-  }
-
-  /**
-   * 頁面一載入就呼叫 GET /api/auth/me，確認瀏覽器裡是否還留著有效的登入 session
-   * （重新整理頁面不會被登出，因為 session cookie 由瀏覽器自動保存、自動帶上）。
-   * 後端回 401 代表「本來就還沒登入」，這是正常情況、不當作錯誤處理，維持離線模式即可。
-   */
-  async function checkSession() {
-    try {
-      const res = await fetch('/api/auth/me');
-      if (!res.ok) { return; }
-      const data = await res.json();
-      applyLoginState(data);
-      log(`已還原登入狀態：${data.username}。`, 's');
-    } catch (e) {
-      loginStatus.textContent = '無法連線後端資料庫，將以離線模式進行。';
-    }
+  function onAuthChange(user) {
+    currentUser = user;
+    loginStatus.textContent = user
+      ? `已登入：${user.username}（累計 勝 ${user.winCount} / 敗 ${user.loseCount}，勝率 ${formatWinRate(user.winCount, user.loseCount)}）`
+      : '尚未登入，遊戲可離線試玩但不會保存戰績';
   }
 
   /**
@@ -274,7 +198,7 @@
    *   moved         - 這一回合玩家是否已經移動過（目前程式碼有設定但沒有實際拿來做判斷，保留給未來擴充用）
    *   towerCount    - 目前棋盤上總共蓋了幾座塔（雙方加總）
    *   user          - 顯示用的使用者資訊，初始勝敗場次會從 currentUser（登入者資料）帶入，
-   *                   如果還沒登入就先用 0/0，等 loginUser()/checkSession() 完成後下一次開新局才會是正確數字
+   *                   如果還沒登入就先用 0/0，等 window.Auth 還原登入狀態、觸發 onAuthChange() 之後，下一次開新局才會是正確數字
    *   games         - 這個瀏覽器分頁這次執行期間，已經打完的對局摘要陣列（僅存在記憶體，重新整理頁面就會消失）
    *   player / ai   - 雙方陣營各自的狀態：
    *                     planes   - 長度 4 的陣列，代表 4 架飛機各自的位置；-1=在機坪，0~28=跑道上的格子，>=29=已抵達終點
@@ -699,58 +623,11 @@
         state.user.lose_count = data.loseCount;
         // 用最新數字重新寫一次結算彈窗的內容（此時彈窗通常還開著，玩家會看到數字從「本地暫算值」更新成「資料庫真實值」）
         resultDetail.innerHTML = `本局回合：<b>${state.round}</b>，建塔數：<b>${state.currentGame.used_tower_count}</b><br>已觸發塔種：${describeUsedTowerStats()}<br>玩家累計：勝 ${state.user.win_count} / 敗 ${state.user.lose_count}，勝率 ${formatWinRate(state.user.win_count, state.user.lose_count)}`;
-        log('本局戰績已儲存至資料庫。', 's');
-        loadHistory(); // 這局剛存進資料庫，重新載入一次最近戰績列表，讓畫面立刻反映最新這一局
+        log('本局戰績已儲存至資料庫，可以到「戰績」頁查看。', 's');
       }
     } catch (e) {
       log('本局戰績儲存失敗（無法連線後端）。', 's');
     }
-  }
-
-  /**
-   * 向後端 GET /api/games/history 取回「目前登入者」最近 5 局的紀錄（後端從 session 判斷是誰，
-   * 不需要在網址上帶 userId），並呼叫 renderHistory() 把結果畫進「最近戰績」面板。
-   * 離線模式（currentUser 是 null）直接跳過，畫面維持顯示原本的提示文字。
-   */
-  async function loadHistory() {
-    if (!currentUser) return;
-    try {
-      const res = await fetch('/api/games/history');
-      const games = await res.json();
-      renderHistory(games);
-    } catch (e) {
-      historyBody.innerHTML = '<p class="history-empty">無法載入歷史紀錄（連不上後端）。</p>';
-    }
-  }
-
-  /**
-   * 把最近戰績資料畫成一個表格塞進 #historyBody。
-   * 每一列對應一局：結果、對局時間、回合數、玩家/AI 步數、建塔數。
-   */
-  function renderHistory(games) {
-    if (!Array.isArray(games) || games.length === 0) {
-      historyBody.innerHTML = '<p class="history-empty">目前沒有歷史對局紀錄，玩完一局之後這裡就會出現。</p>';
-      return;
-    }
-    const rows = games.map(g => {
-      const win = g.result === 'WIN';
-      const resultHtml = win ? '<span class="result-win">🎉 勝利</span>' : '<span class="result-lose">😔 落敗</span>';
-      const time = g.createdAt ? new Date(g.createdAt).toLocaleString('zh-TW', { hour12: false }) : '—';
-      return `<tr>
-        <td>${resultHtml}</td>
-        <td>${time}</td>
-        <td>${g.turnCount ?? '—'}</td>
-        <td>${g.playerMoves ?? '—'} / ${g.aiMoves ?? '—'}</td>
-        <td>${g.usedTowerCount ?? '—'}</td>
-      </tr>`;
-    }).join('');
-    historyBody.innerHTML = `
-      <table class="history-table">
-        <thead>
-          <tr><th>結果</th><th>對局時間</th><th>回合數</th><th>步數（玩家/AI）</th><th>建塔數</th></tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>`;
   }
 
   /**
@@ -840,25 +717,21 @@
   // 結算彈窗的「回到遊戲」按鈕：單純把 .show 這個 class 移除，讓彈窗依照 CSS 規則變回隱藏狀態
   closeModal.addEventListener('click', () => resultModal.classList.remove('show'));
 
-  // 「註冊」「登入」「登出」按鈕：分別對應三個 async 函式，拿輸入框目前的帳密呼叫後端。
-  // 只會影響「之後」開新局時 newState() 帶入的顯示資料，不會打斷正在進行中的這一局。
-  registerBtn.addEventListener('click', () => registerUser(usernameInput.value, passwordInput.value));
-  loginBtn.addEventListener('click', () => loginUser(usernameInput.value, passwordInput.value));
-  logoutBtn.addEventListener('click', () => logoutUser());
-  // Enter 鍵在密碼欄位按下時直接觸發登入，不用一定要用滑鼠點按鈕
-  passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') loginUser(usernameInput.value, passwordInput.value); });
+  // 登入/註冊/登出的表單搬去了 index.html，這裡改成訂閱 window.Auth（見 auth.js）：
+  // 只要在任何一頁登入/登出（包含這一頁 nav 裡的登出按鈕），onAuthChange() 都會被呼叫到，
+  // 讓 loginStatus 文字跟 currentUser 保持同步。
+  window.Auth.onChange(onAuthChange);
 
   // ------------------------------------------------------------------
   // 整支程式最後實際執行的部分：
   // 1. 先畫一次空棋盤（讓使用者一打開網頁就看到棋盤外觀，即使還沒按開始）
-  // 2. 用 FALLBACK_TOWER_TYPES 先把建塔選單畫出來，確保就算後面兩個非同步請求都失敗，
+  // 2. 用 FALLBACK_TOWER_TYPES 先把建塔選單畫出來，確保就算後面的非同步請求失敗，
   //    畫面上還是有完整、可以互動的塔種選單
   // 3. 非同步向後端載入真正的塔種設定（成功的話會覆蓋掉步驟 2 畫出來的內容）
-  // 4. 非同步確認瀏覽器裡有沒有還有效的登入 session（重新整理頁面不會被登出）
-  // 這三個非同步呼叫互不相依，不會互相卡住，也都不會擋住畫面渲染。
+  // 登入狀態的還原改由 auth.js 觸發（見該檔案 DOMContentLoaded 內的 window.Auth.refresh()），
+  // 這裡不用重複呼叫一次。
   // ------------------------------------------------------------------
   drawBoard();
   renderTowerChoiceButtons();
   loadTowerTypes();
-  checkSession();
 })();

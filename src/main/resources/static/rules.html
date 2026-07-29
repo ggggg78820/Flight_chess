@@ -1,0 +1,78 @@
+<!--
+  規則說明頁：純靜態內容，跟舊版 index.html 左欄「簡化規則」+ 塔種卡片完全相同，
+  只是搬到獨立頁面。這一頁完全不需要 JavaScript 遊戲邏輯，只引入 auth.js 讓
+  導覽列能顯示登入狀態（跟其他頁面一致），不會呼叫任何遊戲相關的 API。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>規則說明 - 飛行棋塔防 AI 對戰</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="runway-line"></div>
+    <h1>✈ 飛行棋塔防 <span>AI 對戰</span></h1>
+    <p>單機版（AI 對戰） • HTML + JavaScript • Java Spring Boot • MySQL</p>
+  </header>
+
+  <nav class="site-nav">
+    <a href="index.html">首頁</a>
+    <a href="game.html">開始遊戲</a>
+    <a href="rules.html" class="current">規則說明</a>
+    <a href="history.html">戰績</a>
+    <a href="about.html">關於資料庫</a>
+    <span class="nav-spacer"></span>
+    <span class="nav-status" id="navStatus">尚未登入</span>
+    <button id="navLogoutBtn" class="secondary" style="display:none">登出</button>
+  </nav>
+
+  <main class="wrap">
+    <div class="grid-main" style="grid-template-columns: 1fr;">
+      <section class="card rule-panel">
+        <div class="card-header">
+          <div>
+            <h2>簡化規則</h2>
+            <p class="subtitle">遊戲流程與塔種一目瞭然</p>
+          </div>
+        </div>
+        <div class="body">
+          <div class="rules">
+            <div class="rule"><b>① 起飛與移動</b><span class="small">擲出 1~6 任意點數即可起飛。已在跑道上的飛機依骰子前進。</span></div>
+            <div class="rule"><b>② 飛躍格 ✈</b><span class="small">停在飛躍格時額外前進 4 格；若被雷達干擾則本次不飛躍。</span></div>
+            <div class="rule"><b>③ 路障塔 ⬡</b><span class="small">停在固定塔位才能建塔；塔會在對方經過時觸發效果，但每座塔只能觸發一次，觸發後即失效，之後可以在同一塔位再蓋新塔，一局不限制總共能蓋幾座。</span></div>
+            <div class="rule"><b>④ AI 行為</b><span class="small">AI 優先移動最前面的飛機；若可建塔則隨機選擇塔型。</span></div>
+            <div class="rule"><b>⑤ 勝負</b><span class="small">玩家或 AI 任一方 4 架飛機抵達終點時遊戲結束。</span></div>
+          </div>
+
+          <div class="tower-types-panel">
+            <div class="tower-card">
+              <span class="icon">🏰</span>
+              <strong>砲塔</strong>
+              <p>敵機經過立即送回機坪。</p>
+            </div>
+            <div class="tower-card">
+              <span class="icon">❄️</span>
+              <strong>冰霧塔</strong>
+              <p>敵方下回合骰子值減 1。</p>
+            </div>
+            <div class="tower-card">
+              <span class="icon">📡</span>
+              <strong>雷達塔</strong>
+              <p>敵方下一次飛躍格效果失效。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="footer">準備好了嗎？前往<a href="game.html">開始遊戲</a>頁實際玩一局。</div>
+  </main>
+
+  <script src="auth.js"></script>
+</body>
+</html>

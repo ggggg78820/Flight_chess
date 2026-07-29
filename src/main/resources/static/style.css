@@ -29,6 +29,21 @@ body {
   background: var(--bg); color: var(--text); min-height: 100vh;
 }
 
+/* ── NAV：跨 5 個頁面共用的導覽列，每個頁面的 HTML 各自複製這段標記（專案沒有樣板引擎，見 index.html 開頭註解） ── */
+.site-nav {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 12px 28px; background: var(--panel2); border-bottom: 1px solid var(--border);
+}
+.site-nav a {
+  padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  color: var(--muted); text-decoration: none;
+}
+.site-nav a:hover { color: var(--accent); }
+.site-nav a.current { background: var(--accent); color: #fff; }
+.site-nav .nav-spacer { flex: 1; }
+.site-nav .nav-status { font-size: 12px; color: var(--muted); margin-right: 4px; }
+.site-nav #navLogoutBtn { padding: 6px 12px; font-size: 12px; }
+
 /* ── HEADER：頁面最上方的標題橫幅 ── */
 header {
   position: relative; overflow: hidden;
@@ -250,6 +265,7 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 .history-table .result-lose { color: var(--red); font-weight: 700; }
 
 .footer { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: 12px; padding: 16px 0; }
+.footer a, .rule-panel a, .info-panel a { color: var(--accent); font-weight: 700; }
 
 /* ── MODAL：遊戲結束彈窗 ── */
 /* 預設 display:none 隱藏；app.js 幫 #resultModal 加上 .show 這個 class 之後，下面這條規則才會讓它以 flex 顯示出來並置中 */

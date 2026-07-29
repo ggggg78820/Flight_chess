@@ -1,0 +1,151 @@
+<!--
+  這是「開始遊戲」頁，整個專案真正在玩的畫面（棋盤、教學提示、建塔選單、事件紀錄）都在這裡。
+  登入/註冊搬去了 index.html；最近戰績搬去了 history.html；規則說明搬去了 rules.html；
+  資料庫欄位對照表搬去了 about.html——這一頁只留下「正在進行一局遊戲」時真正需要互動的元素。
+
+  登入狀態不需要在這頁重新登入：後端用 HttpSession（cookie）記住登入者，只要在 index.html
+  登入過，瀏覽器帶著同一個 cookie 開這一頁，game.js 呼叫 window.Auth（見 auth.js）就能拿到
+  目前登入者是誰，不用整頁走一次登入流程。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>開始遊戲 - 飛行棋塔防 AI 對戰</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="runway-line"></div>
+    <h1>✈ 飛行棋塔防 <span>AI 對戰</span></h1>
+    <p>單機版（AI 對戰） • HTML + JavaScript • Java Spring Boot • MySQL</p>
+  </header>
+
+  <nav class="site-nav">
+    <a href="index.html">首頁</a>
+    <a href="game.html" class="current">開始遊戲</a>
+    <a href="rules.html">規則說明</a>
+    <a href="history.html">戰績</a>
+    <a href="about.html">關於資料庫</a>
+    <span class="nav-spacer"></span>
+    <span class="nav-status" id="navStatus">尚未登入</span>
+    <button id="navLogoutBtn" class="secondary" style="display:none">登出</button>
+  </nav>
+
+  <main class="wrap">
+    <div class="grid-main">
+
+      <!-- ===== 左欄：教學提示 + 建塔選單 ===== -->
+      <aside class="card info-panel">
+        <div class="card-header">
+          <div>
+            <h2>控制與教學</h2>
+            <p class="subtitle">一步步引導讓新手更快理解流程</p>
+          </div>
+        </div>
+
+        <div class="body">
+          <!-- app.js 的 setTip(title, text) 會即時改寫這兩個元素的內容 -->
+          <div class="tutorial">
+            <h3 id="tipTitle">歡迎</h3>
+            <div id="tipText">按下「▶ 開始 / 重新開始」以進行遊戲。</div>
+          </div>
+
+          <!--
+            建塔選單：按鈕由 app.js 呼叫 GET /api/towers 拿到塔種清單後動態產生，
+            預設隱藏，玩家移動後停在塔位格時才會顯示出來。
+          -->
+          <div class="tower-choice-panel">
+            <div class="tower-title">
+              <h3>選擇塔型</h3>
+              <p>停在塔位後可建塔，建塔後由對手觸發；每座塔只能觸發一次，失效後可在同一塔位重建。</p>
+            </div>
+            <div class="choice" id="towerChoices" style="display:none"></div>
+          </div>
+
+          <p class="small" style="margin-top:14px;color:var(--muted)">
+            不熟悉規則或塔的效果？可以先看<a href="rules.html">規則說明</a>頁。
+          </p>
+        </div>
+      </aside>
+
+      <!-- ===== 中欄：遊戲主畫面（棋盤） ===== -->
+      <section class="card board-panel">
+        <div class="card-header">
+          <div>
+            <h2>遊戲主畫面</h2>
+            <p class="subtitle">即時棋盤與回合資訊</p>
+          </div>
+          <span class="chip">2-3 分鐘上手</span>
+        </div>
+
+        <div class="body">
+          <div class="board-header-row">
+            <div class="start-box compact">
+              <h3>準備起飛？</h3>
+              <!-- 登入狀態說明：由 game.js 依 window.Auth.user 更新，決定這一局結束後會不會存進資料庫 -->
+              <p class="small" id="loginStatus">尚未登入，遊戲可離線試玩但不會保存戰績</p>
+              <button id="startBtn">▶ 開始 / 重新開始</button>
+            </div>
+            <div class="status">
+              <div class="stat"><small>目前回合</small><b id="turnLabel">—</b></div>
+              <div class="stat"><small>骰子點數</small><b id="diceLabel">—</b></div>
+              <div class="stat"><small>回合數</small><b id="roundLabel">0</b></div>
+              <div class="stat"><small>已建塔數</small><b id="towerCountLabel">0</b></div>
+            </div>
+          </div>
+
+          <div class="top-row">
+            <div class="controls">
+              <button id="rollBtn" disabled>🎲 擲骰子</button>
+              <button id="moveBtn" disabled>✈ 起飛 / 移動</button>
+              <button id="endBtn" disabled>⏎ 結束回合</button>
+            </div>
+          </div>
+
+          <!-- 棋盤本體：app.js 的 drawBoard() 動態產生所有畫面元素 -->
+          <div id="board" class="board-root"></div>
+
+          <p class="small" style="margin-top:14px;text-align:center;color:var(--muted)">
+            想看已經打過的對局結果？前往<a href="history.html">戰績</a>頁。
+          </p>
+        </div>
+      </section>
+
+      <!-- ===== 右欄：事件紀錄 ===== -->
+      <aside class="right-col">
+        <div class="card log-panel">
+          <div class="log-header">
+            <h3>事件紀錄</h3>
+            <span>最新動作會顯示於此</span>
+          </div>
+          <div class="body">
+            <div class="log" id="log"></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="footer">建議 Demo 流程：開始遊戲 → 擲骰 → 移動 → 到塔位建塔 → 觀察 AI 回合 → 完成勝負結算</div>
+  </main>
+
+  <!-- 遊戲結束彈窗 -->
+  <div class="modal" id="resultModal">
+    <div class="box">
+      <h2>遊戲結束</h2>
+      <div class="resultBig" id="resultText"></div>
+      <p id="resultDetail"></p>
+      <div class="player-id-row">
+        <button id="closeModal">回到遊戲</button>
+        <a href="history.html" class="secondary" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;flex:1;border-radius:10px;">查看戰績</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

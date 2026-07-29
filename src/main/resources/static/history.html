@@ -1,0 +1,53 @@
+<!--
+  戰績頁：跟舊版 index.html 裡「最近戰績」區塊內容相同，只是搬到獨立頁面。
+  資料來源仍是 GET /api/games/history（後端從登入 session 判斷是誰，見 SessionUtil），
+  只是渲染邏輯搬去了 history.js，不用透過玩一局遊戲才能看到自己的歷史紀錄。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>戰績 - 飛行棋塔防 AI 對戰</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="runway-line"></div>
+    <h1>✈ 飛行棋塔防 <span>AI 對戰</span></h1>
+    <p>單機版（AI 對戰） • HTML + JavaScript • Java Spring Boot • MySQL</p>
+  </header>
+
+  <nav class="site-nav">
+    <a href="index.html">首頁</a>
+    <a href="game.html">開始遊戲</a>
+    <a href="rules.html">規則說明</a>
+    <a href="history.html" class="current">戰績</a>
+    <a href="about.html">關於資料庫</a>
+    <span class="nav-spacer"></span>
+    <span class="nav-status" id="navStatus">尚未登入</span>
+    <button id="navLogoutBtn" class="secondary" style="display:none">登出</button>
+  </nav>
+
+  <main class="wrap">
+    <div class="grid-main" style="grid-template-columns: 1fr;">
+      <section class="card history-panel" style="margin-top:0;">
+        <div class="history-header">
+          <h3>最近戰績</h3>
+          <span>最近 5 局</span>
+        </div>
+        <div id="historyBody">
+          <p class="history-empty">尚未載入歷史紀錄。</p>
+        </div>
+      </section>
+    </div>
+
+    <div class="footer">還沒登入嗎？前往<a href="index.html">首頁</a>登入，或直接<a href="game.html">開始遊戲</a>離線試玩。</div>
+  </main>
+
+  <script src="auth.js"></script>
+  <script src="history.js"></script>
+</body>
+</html>

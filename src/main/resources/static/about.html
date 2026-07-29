@@ -1,0 +1,77 @@
+<!--
+  關於資料庫頁：純靜態內容，跟舊版 index.html 右欄「資料庫驗證概念」表格相同，只是搬到獨立頁面，
+  額外補充一段文字版的資料表關聯說明（跟 README 裡的 ER 說明一致）。這一頁完全不需要 JavaScript
+  遊戲邏輯，只引入 auth.js 讓導覽列顯示登入狀態。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>關於資料庫 - 飛行棋塔防 AI 對戰</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="runway-line"></div>
+    <h1>✈ 飛行棋塔防 <span>AI 對戰</span></h1>
+    <p>單機版（AI 對戰） • HTML + JavaScript • Java Spring Boot • MySQL</p>
+  </header>
+
+  <nav class="site-nav">
+    <a href="index.html">首頁</a>
+    <a href="game.html">開始遊戲</a>
+    <a href="rules.html">規則說明</a>
+    <a href="history.html">戰績</a>
+    <a href="about.html" class="current">關於資料庫</a>
+    <span class="nav-spacer"></span>
+    <span class="nav-status" id="navStatus">尚未登入</span>
+    <button id="navLogoutBtn" class="secondary" style="display:none">登出</button>
+  </nav>
+
+  <main class="wrap">
+    <div class="grid-main" style="grid-template-columns: 1fr;">
+      <section class="card db-panel">
+        <div class="card-header">
+          <div>
+            <h2>資料庫驗證概念</h2>
+            <p class="subtitle">展示模型與實際資料對應</p>
+          </div>
+        </div>
+        <div class="body">
+          <table class="table">
+            <thead><tr><th>表格</th><th>本展示對應資料</th><th>用途</th></tr></thead>
+            <tbody>
+              <tr><td>users</td><td>player1、勝敗統計</td><td>使用者與總勝敗</td></tr>
+              <tr><td>games</td><td>result、turn_count、used_tower_count</td><td>遊戲紀錄</td></tr>
+              <tr><td>towers</td><td>砲塔、冰霧塔、雷達塔</td><td>塔種資料</td></tr>
+              <tr><td>game_towers</td><td>某局在 A05 / C12 等塔位放了哪種塔</td><td>串接 games 與 towers</td></tr>
+            </tbody>
+          </table>
+
+          <div class="rules">
+            <div class="rule">
+              <b>資料表關聯</b>
+              <span class="small">
+                users (1) ──&lt; games (1) ──&lt; game_towers &gt;── (1) towers<br>
+                一個 users 可以對應多筆 games（一個玩家打很多局）；一筆 games 可以對應多筆 game_towers（一局裡建了好幾座塔）；
+                一種 towers 也可以出現在很多筆 game_towers 裡（同一種塔在很多局裡都被用過）。
+              </span>
+            </div>
+            <div class="rule">
+              <b>後端分層</b>
+              <span class="small">Controller（處理 HTTP 細節）→ Service（帳密驗證、遊戲規則驗證、資料組裝）→ Repository（Spring Data JPA，跟資料庫溝通）。登入狀態用 HttpSession 管理，需要登入的 API 一律從 session 讀出使用者身分，不接受前端宣稱的任何使用者 id。</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="footer">想看完整的 API 清單、建置與展示步驟？請看專案原始碼根目錄的 README.md。</div>
+  </main>
+
+  <script src="auth.js"></script>
+</body>
+</html>
