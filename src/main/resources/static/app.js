@@ -32,7 +32,9 @@
   const towerCountLabel  = document.getElementById('towerCountLabel'); // 已建塔數顯示
   const tipTitle         = document.getElementById('tipTitle');        // 教學提示標題
   const tipText          = document.getElementById('tipText');         // 教學提示內文
-  const towerChoices     = document.getElementById('towerChoices');    // 建塔選單容器
+  const towerChoices     = document.getElementById('towerChoices');    // 建塔選單容器（在 towerDialog 彈窗裡）
+  const towerDialog      = document.getElementById('towerDialog');     // 建塔彈窗（原生 <dialog>）
+  const skipTowerBtn     = document.getElementById('skipTowerBtn');    // 建塔彈窗裡的「不建塔」按鈕
   const resultModal      = document.getElementById('resultModal');     // 結算彈窗
   const resultText       = document.getElementById('resultText');      // 彈窗裡的「勝利/失敗」大字
   const resultDetail     = document.getElementById('resultDetail');    // 彈窗裡的詳細數據
@@ -497,30 +499,102 @@
    *       - 如果最終停在飛躍格：只要沒被雷達干擾，就額外前進 4 格（但不會超過終點）；
    *         如果剛好處於被雷達干擾狀態，則消耗掉這次干擾、不觸發飛躍效果
    *   4. 把算出來的最終位置寫回 actor.planes[idx]
+   *
+   * 回傳值：遊戲規則本身完全不需要這個回傳值（state 已經在函式內部改完了），純粹是額外
+   * 附帶一份「這一步怎麼走的」描述（from/to/有沒有折返/有沒有被打回機坪...），給 animateMove()
+   * 拿去畫「飛機飛過去」的過場動畫用；animateMove() 純視覺，不會回頭影響這裡算好的結果。
    */
   function moveSide(side) {
     let dice = state.dice;
     const actor = state[side];
     if (actor.freeze) { dice=Math.max(1,dice-1); actor.freeze=false; log(`受到冰霧影響，本回合實際走 ${dice} 步。`, side==='player'?'p':'a'); }
     const idx = choosePlane(side);
-    if (idx < 0) { log(`已無可移動飛機。`, side==='player'?'p':'a'); return; }
+    if (idx < 0) { log(`已無可移動飛機。`, side==='player'?'p':'a'); return null; }
     let from = actor.planes[idx], to;
     if (from < 0) {
       to = 0; log(`${idx+1}號飛機起飛到起點。`, side==='player'?'p':'a');
-    } else {
-      to = from + dice;
-      if (to > finishIndex) { const over=to-finishIndex; to=finishIndex-over; log(`點數超過終點，折返 ${over} 格。`,'s'); }
-      if (to === finishIndex) { actor.planes[idx]=finishIndex; actor.finished++; log(`${idx+1}號飛機抵達終點。`, side==='player'?'p':'a'); return; }
-      applyTowerEffects(side, idx, from, to);
-      if (actor.planes[idx]===-1) return; // 被砲塔打回機坪了，位置已經在 applyTowerEffects 裡設定過，這裡不用再覆蓋
-      if (jumpCells.has(to) && !actor.jam) {
-        log(`停在飛躍格，額外飛躍 4 格。`, side==='player'?'p':'a');
-        to = Math.min(finishIndex, to+4);
-      } else if (jumpCells.has(to) && actor.jam) {
-        actor.jam = false; log(`被雷達干擾，本次不能飛躍。`, side==='player'?'p':'a');
-      }
+      actor.planes[idx] = to;
+      return { side, idx, from, to, over:0, kind:'takeoff' };
+    }
+    to = from + dice;
+    let over = 0;
+    if (to > finishIndex) { over=to-finishIndex; to=finishIndex-over; log(`點數超過終點，折返 ${over} 格。`,'s'); }
+    if (to === finishIndex) {
+      actor.planes[idx]=finishIndex; actor.finished++; log(`${idx+1}號飛機抵達終點。`, side==='player'?'p':'a');
+      return { side, idx, from, to, over, kind:'finish' };
+    }
+    const preTowerTo = to;
+    applyTowerEffects(side, idx, from, to);
+    if (actor.planes[idx]===-1) return { side, idx, from, to:preTowerTo, over, kind:'knockback' }; // 被砲塔打回機坪了，位置已經在 applyTowerEffects 裡設定過，這裡不用再覆蓋
+    if (jumpCells.has(to) && !actor.jam) {
+      log(`停在飛躍格，額外飛躍 4 格。`, side==='player'?'p':'a');
+      to = Math.min(finishIndex, to+4);
+    } else if (jumpCells.has(to) && actor.jam) {
+      actor.jam = false; log(`被雷達干擾，本次不能飛躍。`, side==='player'?'p':'a');
     }
     actor.planes[idx] = to;
+    return { side, idx, from, to, over, kind:'move' };
+  }
+
+  /**
+   * 純視覺用的移動動畫：呼叫這個函式的時候，state 已經被 moveSide() 算完最終結果了，
+   * 這裡只是照 moveInfo 描述的走法，用一個「臨時飛機圖示」沿棋盤路徑跑過去，跑完就呼叫
+   * onDone()，讓呼叫端接著做原本「移動完成後」該做的事（真正畫棋盤、判斷能不能建塔、檢查勝負...）。
+   * 拆成「先算完結果、後補動畫」兩步，是為了完全不用去動 moveSide() 原本的規則判斷邏輯。
+   *
+   * 各種 kind 的走法：
+   *   - takeoff（從機坪起飛）：機坪跟棋盤路徑不是同一個座標系統，直接在起點格做一個小小的
+   *     淡入效果，不畫逐格移動。
+   *   - move / knockback（含 over>0 的折返）：從 from 沿 path 逐格走到 to；如果中途折返
+   *     （over>0），會先走到終點格再退回來，而不是直接跳過去。
+   *   - knockback：實際上被打回機坪了（state 已經是 -1），但視覺上先讓它走到「原本要停的格子」
+   *     （preTowerTo）才消失，模擬「被塔擊中才折返」的感覺，不去追塔實際觸發的精確座標。
+   */
+  function animateMove(moveInfo, onDone) {
+    if (!moveInfo) { onDone(); return; }
+    const { side, from, to, over, kind } = moveInfo;
+    const color = side==='player' ? '#34d399' : '#f87171';
+
+    if (kind === 'takeoff') {
+      const [x,y] = path[0];
+      const ghost = document.createElement('div');
+      ghost.className = `plane plane-ghost plane-pop ${side}`;
+      ghost.style.left = `${x-2.2}%`; ghost.style.top = `${y-2.2}%`;
+      ghost.innerHTML = planeSVG(color, planeRotation(0));
+      board.appendChild(ghost);
+      setTimeout(() => { ghost.remove(); onDone(); }, 220);
+      return;
+    }
+
+    const steps = [];
+    if (over > 0) {
+      for (let i=from+1; i<=finishIndex; i++) steps.push(i);
+      for (let i=finishIndex-1; i>=to; i--) steps.push(i);
+    } else {
+      for (let i=from+1; i<=to; i++) steps.push(i);
+    }
+    if (steps.length === 0) { onDone(); return; }
+
+    // 終點（finishIndex）不在 path[] 陣列範圍內（finishIndex = path.length），
+    // 動畫途中經過終點只是路過，粗略用棋盤中心當座標，實際定案位置交給後面的 drawBoard()。
+    const coordFor = i => i >= finishIndex ? [43,43] : path[i];
+
+    const ghost = document.createElement('div');
+    ghost.className = `plane plane-ghost ${side}`;
+    board.appendChild(ghost);
+    const placeAt = i => {
+      const [x,y] = coordFor(i);
+      const rot = i >= finishIndex ? 270 : planeRotation(i);
+      ghost.style.left = `${x-2.2}%`; ghost.style.top = `${y-2.2}%`;
+      ghost.innerHTML = planeSVG(color, rot);
+    };
+    placeAt(from); // 先把臨時圖示放在起點，接續真正棋盤上（尚未重畫）該位置本來就有的那架飛機
+    let i = -1;
+    const timer = setInterval(() => {
+      i++;
+      if (i >= steps.length) { clearInterval(timer); ghost.remove(); onDone(); return; }
+      placeAt(steps[i]);
+    }, 140);
   }
 
   // 判斷某一方目前有沒有飛機「停在可建塔格，而且那一格目前沒有還在生效中的塔」——有的話才能建塔。
@@ -662,9 +736,12 @@
    * （這個延遲同樣是為了讓玩家能看清楚 AI 剛做了什麼動作，才切換回玩家回合）。
    */
   function aiTurn() {
-    state.dice=randomDice(); log(`擲出 ${state.dice}。`,'a'); moveSide('ai'); state.currentGame.ai_moves++;
-    if (canBuild('ai')) { const types=Object.keys(towerTypes); buildTower('ai', types[Math.floor(Math.random()*types.length)]); }
-    updateLabels(); drawBoard(); if (!checkWin()) setTimeout(nextTurn, 700);
+    state.dice=randomDice(); log(`擲出 ${state.dice}。`,'a');
+    const moveInfo = moveSide('ai'); state.currentGame.ai_moves++;
+    animateMove(moveInfo, () => {
+      if (canBuild('ai')) { const types=Object.keys(towerTypes); buildTower('ai', types[Math.floor(Math.random()*types.length)]); }
+      updateLabels(); drawBoard(); if (!checkWin()) setTimeout(nextTurn, 700);
+    });
   }
 
   // ------------------------------------------------------------------
@@ -676,7 +753,7 @@
   // 記憶體裡就好，等 endGame() 分出勝負時才一次把完整結果（含建過的塔）送給後端，見 syncGameEnd()。
   startBtn.addEventListener('click', () => {
     state=newState(); logEl.innerHTML=''; state.active=true;
-    rollBtn.disabled=false; moveBtn.disabled=true; endBtn.disabled=true; towerChoices.style.display='none';
+    rollBtn.disabled=false; moveBtn.disabled=true; endBtn.disabled=true; towerDialog.close();
     log('遊戲開始。玩家先手。','s');
     setTip('第 1 步：擲骰子','按下「🎲 擲骰子」產生本回合點數。');
     updateLabels(); drawBoard();
@@ -691,13 +768,19 @@
     updateLabels();
   });
 
-  // 「起飛 / 移動」：呼叫 moveSide('player') 執行移動邏輯，移動完檢查能不能建塔、有沒有分出勝負
+  // 「起飛 / 移動」：呼叫 moveSide('player') 算出結果，animateMove() 播完飛機移動過場後，
+  // 才真正畫棋盤、檢查能不能建塔、判斷勝負——移動動畫播放期間先不開放「結束回合」，
+  // 避免玩家在飛機還沒飛到定位前就把回合交出去。
   moveBtn.addEventListener('click', () => {
-    if (!state?.dice) return; moveSide('player'); state.currentGame.player_moves++; state.moved=true; moveBtn.disabled=true; endBtn.disabled=false;
-    drawBoard(); updateLabels();
-    if (canBuild('player')) { towerChoices.style.display='grid'; setTip('可建立路障塔','你停在固定塔位，可以選一種塔。若不想建塔，可直接結束回合。'); }
-    else { setTip('第 3 步：結束回合','本回合移動完成。按「⏎ 結束回合」交給 AI。'); }
-    checkWin();
+    if (!state?.dice) return;
+    const moveInfo = moveSide('player'); state.currentGame.player_moves++; state.moved=true;
+    moveBtn.disabled=true; endBtn.disabled=true;
+    animateMove(moveInfo, () => {
+      drawBoard(); updateLabels(); endBtn.disabled=false;
+      if (canBuild('player')) { towerDialog.showModal(); setTip('可建立路障塔','跳出的視窗可以選一種塔；若不想建塔，按視窗裡的「不建塔」即可。'); }
+      else { setTip('第 3 步：結束回合','本回合移動完成。按「⏎ 結束回合」交給 AI。'); }
+      checkWin();
+    });
   });
 
   // 建塔選單：用「事件代理（event delegation）」的方式，把 click 監聽器綁在外層容器 towerChoices 上，
@@ -705,13 +788,16 @@
   // 藉此知道玩家選的是哪一種塔；如果點到的地方沒有 data-tower（例如點到容器空白處），直接 return 不處理。
   towerChoices.addEventListener('click', e => {
     const type = e.target.dataset.tower; if (!type) return;
-    buildTower('player', type); towerChoices.style.display='none';
+    buildTower('player', type); towerDialog.close();
     setTip('塔已建立','塔只會在敵方飛機經過該格時觸發一次效果，觸發後即失效，之後可以在同一塔位再蓋新塔。現在可以結束回合。');
   });
 
-  // 「結束回合」：把建塔選單收起來、三顆按鈕都先關閉，然後呼叫 nextTurn() 把回合交給 AI
+  // 建塔彈窗的「不建塔」：單純關閉彈窗，不呼叫 buildTower()，讓玩家可以跳過這次建塔機會
+  skipTowerBtn.addEventListener('click', () => towerDialog.close());
+
+  // 「結束回合」：把建塔彈窗收起來、三顆按鈕都先關閉，然後呼叫 nextTurn() 把回合交給 AI
   endBtn.addEventListener('click', () => {
-    towerChoices.style.display='none'; rollBtn.disabled=moveBtn.disabled=endBtn.disabled=true; nextTurn();
+    towerDialog.close(); rollBtn.disabled=moveBtn.disabled=endBtn.disabled=true; nextTurn();
   });
 
   // 結算彈窗的「回到遊戲」按鈕：單純把 .show 這個 class 移除，讓彈窗依照 CSS 規則變回隱藏狀態

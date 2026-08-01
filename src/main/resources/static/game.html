@@ -54,18 +54,6 @@
             <div id="tipText">按下「▶ 開始 / 重新開始」以進行遊戲。</div>
           </div>
 
-          <!--
-            建塔選單：按鈕由 app.js 呼叫 GET /api/towers 拿到塔種清單後動態產生，
-            預設隱藏，玩家移動後停在塔位格時才會顯示出來。
-          -->
-          <div class="tower-choice-panel">
-            <div class="tower-title">
-              <h3>選擇塔型</h3>
-              <p>停在塔位後可建塔，建塔後由對手觸發；每座塔只能觸發一次，失效後可在同一塔位重建。</p>
-            </div>
-            <div class="choice" id="towerChoices" style="display:none"></div>
-          </div>
-
           <p class="small" style="margin-top:14px;color:var(--muted)">
             不熟悉規則或塔的效果？可以先看<a href="rules.html">規則說明</a>頁。
           </p>
@@ -75,7 +63,7 @@
       <!-- ===== 中欄：遊戲主畫面（棋盤） ===== -->
       <section class="card board-panel">
         <div class="card-header">
-          <div>
+          <div class="title-inline">
             <h2>遊戲主畫面</h2>
             <p class="subtitle">即時棋盤與回合資訊</p>
           </div>
@@ -85,10 +73,12 @@
         <div class="body">
           <div class="board-header-row">
             <div class="start-box compact">
-              <h3>準備起飛？</h3>
+              <div class="start-box-row">
+                <h3>準備起飛？</h3>
+                <button id="startBtn">▶ 開始 / 重新開始</button>
+              </div>
               <!-- 登入狀態說明：由 game.js 依 window.Auth.user 更新，決定這一局結束後會不會存進資料庫 -->
               <p class="small" id="loginStatus">尚未登入，遊戲可離線試玩但不會保存戰績</p>
-              <button id="startBtn">▶ 開始 / 重新開始</button>
             </div>
             <div class="status">
               <div class="stat"><small>目前回合</small><b id="turnLabel">—</b></div>
@@ -131,6 +121,20 @@
 
     <div class="footer">建議 Demo 流程：開始遊戲 → 擲骰 → 移動 → 到塔位建塔 → 觀察 AI 回合 → 完成勝負結算</div>
   </main>
+
+  <!--
+    建塔彈窗：按鈕由 app.js 呼叫 GET /api/towers 拿到塔種清單後動態產生。
+    玩家移動後停在塔位格時，app.js 用 showModal() 跳出這個原生 <dialog>；
+    選一種塔或按「不建塔」都會呼叫 close() 收起來。
+  -->
+  <dialog class="tower-dialog" id="towerDialog">
+    <div class="tower-title">
+      <h3>選擇塔型</h3>
+      <p>停在塔位後可建塔，建塔後由對手觸發；每座塔只能觸發一次，失效後可在同一塔位重建。</p>
+    </div>
+    <div class="choice" id="towerChoices"></div>
+    <button id="skipTowerBtn" class="secondary" style="width:100%;margin-top:14px">不建塔</button>
+  </dialog>
 
   <!-- 遊戲結束彈窗 -->
   <div class="modal" id="resultModal">

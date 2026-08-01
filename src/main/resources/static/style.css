@@ -98,20 +98,6 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 /* ── STATUS：回合／骰子／回合數／建塔數 四格統計資訊 ── */
 .status { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; align-content: start; }
 .stat { background: var(--panel2); border: 1px solid var(--border); border-radius: 14px; padding: 14px 12px; text-align: center; }
-/* 玩家識別狀態（原本在左側「準備起飛？」卡片內），移到這裡跟四格統計資訊同一個右欄，
-   用 grid-column: 1 / -1 讓它橫跨全部 4 欄，填滿統計格下方原本空白的區域 */
-.status #loginStatus {
-  grid-column: 1 / -1;
-  margin: 0;
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px 14px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent2-soft);
-  text-align: center;
-}
 .stat small { display: block; font-size: 11px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px; }
 .stat b { display: block; font-size: 22px; font-weight: 900; color: var(--accent2-soft); } /* 這個 <b> 標籤就是 app.js updateLabels() 會動態改內容的地方 */
 
@@ -163,6 +149,11 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 */
 .plane { position: absolute; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; z-index: 10; transition: left .35s ease, top .35s ease; filter: drop-shadow(0 2px 6px rgba(0,0,0,.6)); }
 .plane svg { width: 100%; height: 100%; }
+/* 移動過場動畫用的臨時飛機圖示（見 app.js animateMove()）：沿用 .plane 既有的 left/top transition
+   來產生逐格飛過去的效果，pointer-events:none 避免擋到棋盤格的滑鼠互動，z-index 疊在真正的飛機之上 */
+.plane-ghost { z-index: 15; pointer-events: none; }
+.plane-pop { animation: planePop .22s ease-out; }
+@keyframes planePop { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: scale(1); } }
 .hangar-plane { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; filter: drop-shadow(0 1px 3px rgba(0,0,0,.5)); }
 .hangar-plane svg { width: 100%; height: 100%; }
 
@@ -174,9 +165,13 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 .grid-main { display: grid; grid-template-columns: minmax(240px, 1fr) auto minmax(240px, 1fr); gap: 16px; } /* 左右兩欄彈性寬度、中間棋盤欄用 auto（依內容自動決定寬度） */
 .right-col { display: flex; flex-direction: column; gap: 16px; }
 .board-panel, .info-panel, .rule-panel, .db-panel { display: flex; flex-direction: column; }
-.top-row { display: grid; grid-template-columns: 1fr auto; gap: 14px; margin-bottom: 18px; align-items: center; }
-.board-header-row { display: grid; grid-template-columns: minmax(220px, 320px) 1fr; gap: 14px; margin-bottom: 18px; align-items: start; }
-.start-box.compact { padding: 14px 16px; }
+/* margin-bottom 不寫在這兩個 row 容器上，是因為 grid 容器的 margin 不會跟裡面的 grid item
+   （.start-box/.status/.controls，都是 margin-bottom:16px）collapse，兩個疊在一起會變成
+   16+18=34px，比 .card .body 的 16px 頂部 padding 明顯大一截；拿掉這裡的 margin-bottom，
+   改成完全依賴內層 item 自己的 16px margin-bottom，三段間距才會等高 */
+.top-row { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; }
+.board-header-row { display: grid; grid-template-columns: minmax(220px, 320px) 1fr; gap: 14px; align-items: start; }
+.start-box.compact { padding: 12px 16px; }
 .start-box.compact h3 { font-size: 15px; margin-bottom: 10px; }
 .start-box.compact button { width: 100%; }
 .chip-wrapper { display: flex; justify-content: flex-end; align-items: center; }
@@ -190,7 +185,7 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 .player-id-row input:focus { outline: 1px solid var(--accent); }
 /* 覆蓋 .start-box.compact button 的 width:100%，讓確認按鈕與輸入框並排 */
 .start-box.compact .player-id-row button { width: auto; flex: 0 0 auto; padding: 10px 14px; }
-#loginStatus { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
+#loginStatus { color: var(--muted); font-size: 12px; margin-bottom: 0; }
 
 /* 棋盤外框：用 aspect-ratio: 1/1 讓棋盤永遠維持正方形，不管視窗寬度怎麼變 */
 #board {
@@ -214,12 +209,26 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 .start-box h3 { margin: 0 0 8px; color: var(--accent2-soft); }
 .start-box p { color: var(--muted); line-height: 1.7; margin-bottom: 16px; }
 
+/* game.html 專用：「準備起飛？」標題跟「開始/重新開始」按鈕併成同一行，
+   把按鈕從 start-box 最下面搬到標題旁邊，讓下面的擲骰/移動/結束回合三顆按鈕能跟著往上補位。
+   選擇器特別加上 .start-box.compact 前綴，是因為 .start-box.compact h3/button（見上面）
+   本身特異度比單純的 .start-box-row h3/button 高，沒加前綴的話會被那兩條規則蓋掉。 */
+.start-box-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.start-box.compact .start-box-row h3 { margin: 0; white-space: nowrap; flex-shrink: 0; }
+.start-box.compact .start-box-row button { width: auto; flex: 0 1 auto; padding: 8px 12px; white-space: nowrap; }
+
+/* game.html 專用：卡片標題跟副標題併成同一行，取代原本上下兩行的堆疊寫法，省下來的高度讓下方內容跟著往上補位 */
+.title-inline { display: flex; align-items: baseline; gap: 10px; }
+.title-inline .subtitle { margin-top: 0; }
+
 /* 教學提示區塊（對應 index.html 裡的 #tipTitle / #tipText），左側有一條強調色的邊條，視覺上像便利貼提示 */
 .tutorial { border-left: 4px solid var(--accent); background: rgba(40,40,255,.06); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
 .tutorial h3 { margin: 0 0 10px; color: var(--accent2-soft); font-size: 15px; }
 .tutorial div { color: var(--text); line-height: 1.75; }
 
-.tower-choice-panel { border: 1px solid var(--border); border-radius: 16px; padding: 16px; background: rgba(52,211,153,.05); }
+/* 全域重置把 <dialog> 預設的 margin:auto 清成 0，導致原本置中的彈窗跑去左上角，這裡要手動補回來 */
+.tower-dialog { margin: auto; border: 1px solid var(--border); border-radius: 20px; padding: 24px; max-width: 480px; width: 90%; background: var(--panel); box-shadow: 0 0 40px rgba(132,193,255,.15), 0 30px 60px rgba(0,0,0,.5); }
+.tower-dialog::backdrop { background: rgba(0,0,0,.75); backdrop-filter: blur(6px); }
 .tower-title { margin-bottom: 12px; }
 .tower-title h3 { margin: 0 0 6px; color: var(--accent); }
 .tower-title p { margin: 0; color: var(--muted); font-size: 13px; }
