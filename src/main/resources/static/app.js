@@ -336,6 +336,7 @@
       if (p < 0) {
         const icon = document.createElement('div');
         icon.className = 'hangar-plane';
+        icon.dataset.side = 'player'; icon.dataset.idx = i; // 給 animateMove() 找到這個元素、動畫開始時先藏起來用
         icon.innerHTML = planeSVG('#34d399', 270, 0.8); // 玩家用綠色
         icon.title = `玩家 ${i+1}號機`; // 滑鼠移上去會顯示的提示文字
         pbaseEl.appendChild(icon);
@@ -345,6 +346,7 @@
       if (p < 0) {
         const icon = document.createElement('div');
         icon.className = 'hangar-plane';
+        icon.dataset.side = 'ai'; icon.dataset.idx = i;
         icon.innerHTML = planeSVG('#f87171', 90, 0.8); // AI 用紅色
         icon.title = `AI ${i+1}號機`;
         abaseEl.appendChild(icon);
@@ -395,6 +397,7 @@
         const rot = pos >= finishIndex ? 270 : planeRotation(pos);
         const p = document.createElement('div');
         p.className = `plane ${side}${pos>=finishIndex?' finished':''}`;
+        p.dataset.side = side; p.dataset.idx = idx; // 給 animateMove() 找到這個元素、動畫開始時先藏起來用
         p.style.left = `${x-2.2}%`;
         p.style.top  = `${y-2.2}%`;
         p.innerHTML  = planeSVG(color, rot);
@@ -526,14 +529,16 @@
     const preTowerTo = to;
     applyTowerEffects(side, idx, from, to);
     if (actor.planes[idx]===-1) return { side, idx, from, to:preTowerTo, over, kind:'knockback' }; // 被砲塔打回機坪了，位置已經在 applyTowerEffects 裡設定過，這裡不用再覆蓋
+    let jumpLanding = null; // 有觸發飛躍時，記錄「飛躍格本身」的格子編號，給 animateMove() 畫「先停在這格、再跳到最終格」用
     if (jumpCells.has(to) && !actor.jam) {
       log(`停在飛躍格，額外飛躍 4 格。`, side==='player'?'p':'a');
+      jumpLanding = to;
       to = Math.min(finishIndex, to+4);
     } else if (jumpCells.has(to) && actor.jam) {
       actor.jam = false; log(`被雷達干擾，本次不能飛躍。`, side==='player'?'p':'a');
     }
     actor.planes[idx] = to;
-    return { side, idx, from, to, over, kind:'move' };
+    return { side, idx, from, to, over, jumpLanding, kind:'move' };
   }
 
   /**
@@ -545,20 +550,31 @@
    * 各種 kind 的走法：
    *   - takeoff（從機坪起飛）：機坪跟棋盤路徑不是同一個座標系統，直接在起點格做一個小小的
    *     淡入效果，不畫逐格移動。
-   *   - move / knockback（含 over>0 的折返）：從 from 沿 path 逐格走到 to；如果中途折返
-   *     （over>0），會先走到終點格再退回來，而不是直接跳過去。
+   *   - move / knockback（含 over>0 的折返）：從 from 沿 path 逐格走到「飛躍前的落點」（沒有
+   *     飛躍就是 to 本身）；如果中途折返（over>0），會先走到終點格再退回來，而不是直接跳過去。
+   *   - jumpLanding（停在飛躍格，觸發額外飛躍 4 格）：逐格走到飛躍格之後，不是接著繼續逐格走完
+   *     那 4 格，而是先淡出、瞬間換到最終格座標、再淡入，做出「停下來→起跳到目標格」的感覺，
+   *     跟一般移動明顯區隔開來。
    *   - knockback：實際上被打回機坪了（state 已經是 -1），但視覺上先讓它走到「原本要停的格子」
    *     （preTowerTo）才消失，模擬「被塔擊中才折返」的感覺，不去追塔實際觸發的精確座標。
    */
   function animateMove(moveInfo, onDone) {
     if (!moveInfo) { onDone(); return; }
-    const { side, from, to, over, kind } = moveInfo;
+    const { side, idx, from, to, over, jumpLanding, kind } = moveInfo;
     const color = side==='player' ? '#34d399' : '#f87171';
+
+    // 這一步真正移動的那架飛機，在棋盤上還是上一次 drawBoard() 畫出來、停在舊位置的樣子
+    // （這裡還沒有重畫），先把它藏起來，動畫用的臨時圖示（ghost）才不會跟它疊在一起，
+    // 造成畫面上同時出現兩架同色飛機的錯覺。真正的元素反正之後會被 onDone() 裡的 drawBoard() 整個換掉。
+    const selector = kind==='takeoff' ? '.hangar-plane' : '.plane';
+    const realEl = board.querySelector(`${selector}[data-side="${side}"][data-idx="${idx}"]`);
+    if (realEl) realEl.style.visibility = 'hidden';
 
     if (kind === 'takeoff') {
       const [x,y] = path[0];
       const ghost = document.createElement('div');
       ghost.className = `plane plane-ghost plane-pop ${side}`;
+      ghost.dataset.side = side; ghost.dataset.idx = idx;
       ghost.style.left = `${x-2.2}%`; ghost.style.top = `${y-2.2}%`;
       ghost.innerHTML = planeSVG(color, planeRotation(0));
       board.appendChild(ghost);
@@ -566,14 +582,16 @@
       return;
     }
 
+    // 逐格走的動畫只走到「飛躍前的落點」為止；飛躍本身（跳到最終 to）在下面 finishUp() 裡
+    // 另外用淡出/淡入處理，不併進這段逐格 steps。
+    const walkTarget = jumpLanding != null ? jumpLanding : to;
     const steps = [];
     if (over > 0) {
       for (let i=from+1; i<=finishIndex; i++) steps.push(i);
-      for (let i=finishIndex-1; i>=to; i--) steps.push(i);
+      for (let i=finishIndex-1; i>=walkTarget; i--) steps.push(i);
     } else {
-      for (let i=from+1; i<=to; i++) steps.push(i);
+      for (let i=from+1; i<=walkTarget; i++) steps.push(i);
     }
-    if (steps.length === 0) { onDone(); return; }
 
     // 終點（finishIndex）不在 path[] 陣列範圍內（finishIndex = path.length），
     // 動畫途中經過終點只是路過，粗略用棋盤中心當座標，實際定案位置交給後面的 drawBoard()。
@@ -581,6 +599,7 @@
 
     const ghost = document.createElement('div');
     ghost.className = `plane plane-ghost ${side}`;
+    ghost.dataset.side = side; ghost.dataset.idx = idx;
     board.appendChild(ghost);
     const placeAt = i => {
       const [x,y] = coordFor(i);
@@ -588,11 +607,24 @@
       ghost.style.left = `${x-2.2}%`; ghost.style.top = `${y-2.2}%`;
       ghost.innerHTML = planeSVG(color, rot);
     };
+
+    const finishUp = () => {
+      if (jumpLanding == null) { ghost.remove(); onDone(); return; }
+      // 飛躍格：先淡出（停頓感），趁看不見的時候把座標換到最終格，再淡入（起跳落地），最後才收尾
+      ghost.style.opacity = '0';
+      setTimeout(() => {
+        placeAt(to);
+        requestAnimationFrame(() => { ghost.style.opacity = '1'; });
+        setTimeout(() => { ghost.remove(); onDone(); }, 260);
+      }, 260);
+    };
+
     placeAt(from); // 先把臨時圖示放在起點，接續真正棋盤上（尚未重畫）該位置本來就有的那架飛機
+    if (steps.length === 0) { finishUp(); return; }
     let i = -1;
     const timer = setInterval(() => {
       i++;
-      if (i >= steps.length) { clearInterval(timer); ghost.remove(); onDone(); return; }
+      if (i >= steps.length) { clearInterval(timer); finishUp(); return; }
       placeAt(steps[i]);
     }, 140);
   }
