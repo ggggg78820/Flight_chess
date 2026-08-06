@@ -164,6 +164,10 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 
 /* ── PANEL ELEMENTS：整體版面配置細節（三欄格線、各個小區塊的排版） ── */
 .grid-main { display: grid; grid-template-columns: minmax(240px, 1fr) auto minmax(240px, 1fr); gap: 16px; } /* 左右兩欄彈性寬度、中間棋盤欄用 auto（依內容自動決定寬度） */
+/* index.html 專用的兩欄版型（介紹 + 登入）。原本是寫成 <div class="grid-main" style="grid-template-columns:1.1fr 1fr">
+   的行內樣式，但行內樣式的優先權比任何 CSS 規則都高，導致下面 @media 手機版的 1fr 收合規則永遠蓋不過去，
+   這裡改成獨立 class 才能被響應式規則正常覆寫。 */
+.grid-main-intro { grid-template-columns: 1.1fr 1fr; }
 .right-col { display: flex; flex-direction: column; gap: 16px; }
 .board-panel, .info-panel, .rule-panel, .db-panel { display: flex; flex-direction: column; }
 /* margin-bottom 不寫在這兩個 row 容器上，是因為 grid 容器的 margin 不會跟裡面的 grid item
@@ -293,7 +297,7 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
 
 /* ── RESPONSIVE：響應式設計，視窗變窄時把三欄改成單欄堆疊，避免內容擠壓變形 ── */
 @media (max-width: 1040px) {
-  .wrap { grid-template-columns: 1fr; }
+  .grid-main, .grid-main-intro { grid-template-columns: 1fr; }
   .top-row { grid-template-columns: 1fr; }
   .choice { grid-template-columns: 1fr; }
   .tower-types-panel { grid-template-columns: 1fr; }
@@ -305,7 +309,11 @@ button.secondary { background: var(--panel2); color: var(--accent); border: 1px 
   .card-header h2 { font-size: 15px; }
   .top-row, .choice { grid-template-columns: 1fr; }
   button { font-size: 14px; }
-  #board { min-height: 380px; }
+  /* .board-header-row 平常是「準備起飛？」跟四格統計並排（見上面 minmax(220px,320px) 1fr），
+     手機寬度不夠塞兩欄，四格統計會被擠成一條窄縫，「目前回合」這種四字標籤甚至會一個字一行。
+     這裡讓兩塊改成上下堆疊，統計格也從四欄改兩欄，寬度才夠排下文字。 */
+  .board-header-row { grid-template-columns: 1fr; }
+  .status { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* 頁首那條會一直往右跑的跑道虛線動畫，純裝飾用，跟遊戲邏輯無關 */
